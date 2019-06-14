@@ -8,6 +8,7 @@ from django.urls import reverse
 from .models import Tourist, Hotel, Group, Excursion, Files
 from .forms import EditTouristModelForm
 
+
 def index(request):
     """Вью главной страницы"""
 
@@ -30,13 +31,13 @@ def index(request):
     num_hotel = Hotel.objects.all().count()
 
     context = {
-	    'num_tourists': num_tourists,
-		'num_tour_ready': num_tour_ready,
+        'num_tourists': num_tourists,
+        'num_tour_ready': num_tour_ready,
         'num_tour_in_group': num_tour_in_group,
-		'num_group': num_group,
+        'num_group': num_group,
         'num_excurs': num_excurs,
         'num_hotel': num_hotel
-		}
+        }
 
     # Передаём HTML шаблону index.html данные контекста
     return render(request, 'index.html', context=context)
@@ -64,9 +65,9 @@ class TouristView(FormView):
 class TouristListView(generic.ListView):
     model = Tourist
     paginate_by = 2
-    context_object_name = 'tourist_list'   # your own name for the list as a template variable
-    queryset = Tourist.objects.all()[:5] # Get 5 books containing the title war
-    template_name = 'tourists/tourist_list.html'  # Specify your own template name/location
+    context_object_name = 'tourist_list'
+    queryset = Tourist.objects.all()[:5]
+    template_name = 'tourists/tourist_list.html'
 
 class TouristDetailView(generic.DetailView):
     model = Tourist
@@ -74,29 +75,29 @@ class TouristDetailView(generic.DetailView):
 class GroupListView(generic.ListView):
     model = Group
     paginate_by = 2
-    context_object_name = 'group_list'   # your own name for the list as a template variable
-    queryset = Group.objects.all()[:5] # Get 5 books containing the title war
-    template_name = 'groups/group_list.html'  # Specify your own template name/location
+    context_object_name = 'group_list'
+    queryset = Group.objects.all()[:5]
+    template_name = 'groups/group_list.html'
 
 class ExcurListView(generic.ListView):
     model = Excursion
     paginate_by = 2
-    context_object_name = 'excur_list'   # your own name for the list as a template variable
-    queryset = Excursion.objects.all()[:5] # Get 5 books containing the title war
-    template_name = 'excurs/excur_list.html'  # Specify your own template name/location
+    context_object_name = 'excur_list'
+    queryset = Excursion.objects.all()[:5]
+    template_name = 'excurs/excur_list.html'
 
 class HotelListView(generic.ListView):
     model = Hotel
     paginate_by = 2
-    context_object_name = 'hotel_list'   # your own name for the list as a template variable
-    queryset = Hotel.objects.all()[:5] # Get 5 books containing the title war
-    template_name = 'hotels/hotel_list.html'  # Specify your own template name/location
+    context_object_name = 'hotel_list'
+    queryset = Hotel.objects.all()[:5]
+    template_name = 'hotels/hotel_list.html'
 
-def EditTourist(request, pk):
+def edit_tourist(request, pk):
     """
     Функция для редактирования туриста
     """
-    tourist_inst=get_object_or_404(Tourist, pk = pk)
+    tourist_inst=get_object_or_404(Tourist, pk=pk)
 
     # Если это POST запрос, обработаем данные формы
     if request.method == 'POST':

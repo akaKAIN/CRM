@@ -9,7 +9,6 @@ class Tourist(models.Model):
     email = models.EmailField(max_length=50, blank=True, verbose_name='email')
     date_of_arrival = models.DateField(verbose_name='Дата прибытия')
     date_of_departure = models.DateField(verbose_name='Дата убытия')
-    docs = models.FileField()
     note = models.TextField(max_length=1000, verbose_name='Примечание')
     STATUS = (
            ('r', 'заявка сформирована'),
@@ -39,10 +38,14 @@ class Tourist(models.Model):
                               verbose_name='Группа')
     excursion = models.ManyToManyField('Excursion',
                                        verbose_name='Экскурсии')
+    class Meta:
+        ordering = ['date_of_arrival']
+        permissions = (("can_edit", "Editing data"),
+                       ("can_get_report", "Getting report"), )
 
     def __str__(self):
         """ Функция, отображающая имя туриста и его телефон"""
-        return "{} {}".format(self.name, self.phone)
+        return f"{self.name} {self.phone}"
 
     def get_absolute_url(self):
         """Возвращает ссылку для получения деталей по туристу"""
