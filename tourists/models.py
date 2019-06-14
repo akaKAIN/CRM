@@ -24,14 +24,16 @@ class Tourist(models.Model):
         choices=STATUS,
         blank=True,
         default='r',
-        help_text='Статус туриста',
+        verbose_name='Статус туриста',
     )
-    #list_of_services =
+    nutrition = models.ForeignKey('Nutrition',
+                              on_delete=models.SET_NULL,
+                              null=True,
+                              verbose_name='Питание')
     hotel = models.ForeignKey('Hotel',
                               on_delete=models.SET_NULL,
                               null=True,
                               verbose_name='Отель')
-    #number_in_hotel = models.
     group = models.ForeignKey('Group',
                               on_delete=models.SET_NULL,
                               null=True,
@@ -62,12 +64,14 @@ class Files(models.Model):
     contact = models.ForeignKey(Tourist, blank=True, null=True, on_delete=models.CASCADE)
 
     class Meta:
-        verbose_name = "Файлы"
+        verbose_name = "Файл"
         verbose_name_plural = "Файлы"
 
     def __str__(self):
         return self.file.name
 
+class Nutrition(models.Model):
+    name = models.CharField(max_length=300, verbose_name='Питание')
 
 class Hotel(models.Model):
     """ Модель описывающая отель для ттуристов  """
