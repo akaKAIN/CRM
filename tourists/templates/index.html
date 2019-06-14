@@ -1,0 +1,13 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>CRM Туристической фирмы</h1>
+  <p>Общие данные:</p>
+  <ul>
+    <li><strong>Все заявки по туристам:</strong> {{ num_tourists }}</li>
+    <li><strong>Туристы, распределенные по группам:</strong> {{ num_tour_in_group }}</li>
+    <li><strong>Все группы</strong> {{ num_group }}</li>
+    <li><strong>Экскурсии:</strong> {{ num_excurs }}</li>
+    <li><strong>Отели:</strong> {{ num_hotel }}</li>
+  </ul>
+{% endblock %}

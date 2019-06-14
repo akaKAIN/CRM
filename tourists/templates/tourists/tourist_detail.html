@@ -1,0 +1,14 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>{{ tourist.name }}</h1>
+
+  <p><strong>Имя туриста:</strong> <a href="">{{ tourist.name }}</a></p>
+  <p><strong>Телефон:</strong> {{ tourist.phone }}</p>
+  <p><strong>Email:</strong> {{ tourist.email }}</p>
+  <p><strong>Дата прибытия:</strong> {{ tourist.date_of_arrival }}</p>
+  <p><strong>Заметка:</strong> {{ tourist.note }}</p>
+  <p><strong>Статус:</strong> {{ tourist.status }}</p>
+  <p><strong>Документы:</strong> {{ tourist.docs }}</p>
+
+{% endblock %}

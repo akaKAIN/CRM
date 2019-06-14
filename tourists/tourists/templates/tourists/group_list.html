@@ -1,0 +1,17 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>Список сформированных групп</h1>
+  {% if group_list %}
+  <ul>
+    {% for group in group_list %}
+      <li>
+        <p><strong>Менеджер группы:</strong> {{ group.manager }}</p>
+        <p><strong>Статус группы</strong> {{ group.status }}</p>
+      </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    <p>групп нет</p>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>Список доступных экскурсий</h1>
+  {% if excur_list %}
+  <ul>
+    {% for excur in excur_list %}
+      <li>
+        <p><strong>Название экскурсии:</strong> {{ excur.name }}</p>
+        <p><strong>Время начала</strong> {{ excur.time_begin }}</p>
+        <p><strong>Время окончания</strong> {{ excur.time_end }}</p>
+        <p><strong>Стоимость</strong> {{ excur.cost }}</p>
+      </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    <p>Экскурсий нет</p>
+  {% endif %}
+{% endblock %}
