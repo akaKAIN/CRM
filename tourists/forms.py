@@ -17,6 +17,7 @@ class EditTouristModelForm(ModelForm):
                   'date_of_departure',
                   'note',
                   'status',
+                  'nutrition',
                   'hotel',
                   'group',
                   ]
