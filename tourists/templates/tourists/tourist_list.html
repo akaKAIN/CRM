@@ -1,0 +1,17 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>Список туристов</h1>
+  {% if tourist_list %}
+  <ul>
+    {% for tourist in tourist_list %}
+      <li>
+        <a href="{{ tourist.get_absolute_url }}">{{ tourist.name }}</a> ({{tourist.phone}})
+        <a href="{% url 'edit-tourist' tourist.id %}">Edit</a>
+      </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    <p>Список туристов пуст</p>
+  {% endif %}
+{% endblock %}

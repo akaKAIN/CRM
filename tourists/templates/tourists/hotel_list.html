@@ -1,0 +1,20 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>Список отелей</h1>
+  {% if hotel_list %}
+  <ul>
+    {% for hotel in hotel_list %}
+      <li>
+        <p><strong>Название</strong> {{ hotel.name }}</p>
+        <p><strong>Адрес</strong> {{ hotel.addres }}</p>
+        <p><strong>Время заселения</strong> {{ hotel.check_in }}</p>
+        <p><strong>Время выселения</strong> {{ hotel.check_out }}</p>
+        <p><strong>Стоимость в сутки</strong> {{ hotel.cost_for_one_day }}</p>
+      </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    <p>Список отелей пуст</p>
+  {% endif %}
+{% endblock %}
