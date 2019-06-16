@@ -1,6 +1,6 @@
 from django.db import models
 from django.urls import reverse
-import uuid
+
 
 class Tourist(models.Model):
     """ Модель описывающая каждого туриста по отдельности  """
@@ -9,13 +9,21 @@ class Tourist(models.Model):
     email = models.EmailField(max_length=50, blank=True, verbose_name='email')
     date_of_arrival = models.DateField(verbose_name='Дата прибытия')
     date_of_departure = models.DateField(verbose_name='Дата убытия')
-    note = models.TextField(max_length=1000, verbose_name='Примечание')
+    note = models.TextField(max_length=500, verbose_name='Примечание')
+    full_package_of_documents = models.BooleanField(verbose_name='Полный пакет документов',
+                                                    default=False,
+                                                    blank=True,
+                                                    null=True)
+    # Словарь для хранения отрезков времени, занятых питанием и экскурсиями
+    # для построения диаграммы Гантта
+    # { занятие : (время начала, время окончания)}
+    timeline = dict()
     STATUS = (
            ('r', 'заявка сформирована'),
            ('c', 'оплачено'),
-    	   ('d', 'пакет документов готов'),
+           ('d', 'пакет документов готов'),
            ('g', 'в группе'),
-    	   ('h', 'заселен в отель'),
+           ('h', 'заселен в отель'),
            ('e', 'на экскурсии'),
         )
 
@@ -26,20 +34,22 @@ class Tourist(models.Model):
         default='r',
         verbose_name='Статус туриста',
     )
-    nutrition = models.ForeignKey('Nutrition',
-                              on_delete=models.SET_NULL,
-                              null=True,
-                              verbose_name='Питание')
-    hotel = models.ForeignKey('Hotel',
-                              on_delete=models.SET_NULL,
-                              null=True,
-                              verbose_name='Отель')
+
+    nutrition = models.ManyToManyField('Nutrition',
+                                       verbose_name='Питание')
+    hotel = models.ManyToManyField('Hotel',
+                                   verbose_name='Отель')
     group = models.ForeignKey('Group',
                               on_delete=models.SET_NULL,
                               null=True,
                               verbose_name='Группа')
     excursion = models.ManyToManyField('Excursion',
                                        verbose_name='Экскурсии')
+    file = models.ForeignKey('Files',
+                             blank=True,
+                             null=True,
+                             on_delete=models.CASCADE)
+
     class Meta:
         ordering = ['date_of_arrival']
         permissions = (("can_edit", "Editing data"),
@@ -55,26 +65,32 @@ class Tourist(models.Model):
 
     def display_excursion(self):
         """ Функция отображающая все экскурсии на которые записан турист"""
-        return ', '.join(excursion.name for excurs in self.excursion.all())
+        return ', '.join(excurs.name for excurs in self.excursion.all())
 
 
 class Files(models.Model):
 
-    file = models.FileField(upload_to='tourist', blank=True, null=True, verbose_name='Файл')
-    contact = models.ForeignKey(Tourist, blank=True, null=True, on_delete=models.CASCADE)
+    visa = models.FileField(blank=True, null=True, upload_to='visa', verbose_name='Копия визы')
+    contract = models.FileField(blank=True, null=True, upload_to='contract', verbose_name='Копия договора')
+    passport = models.FileField(blank=True, null=True, upload_to='passport', verbose_name='Копия паспорта')
+    others = models.FileField(blank=True, null=True, upload_to='others', verbose_name='Другие документы')
 
     class Meta:
         verbose_name = "Файл"
         verbose_name_plural = "Файлы"
 
-    def __str__(self):
-        return self.file.name
 
 class Nutrition(models.Model):
+    """ Модель описывающая питание туриста """
     name = models.CharField(max_length=300, verbose_name='Питание')
+    cost = models.DecimalField(max_digits=7, decimal_places=2)
+
+    def __str__(self):
+        return self.name
+
 
 class Hotel(models.Model):
-    """ Модель описывающая отель для ттуристов  """
+    """ Модель описывающая отель для туристов  """
     name = models.CharField(max_length=300, help_text='Введите название отеля')
     addres = models.CharField(max_length=300)
     phone = models.CharField(max_length=20)
@@ -82,10 +98,15 @@ class Hotel(models.Model):
     check_in = models.TimeField()
     check_out = models.TimeField()
 
+    def __str__(self):
+        return self.name
+
+
 class Group(models.Model):
     """ Модель описывающая группы туристов  """
-    manager =  models.CharField(max_length=200, help_text='Менеджер группы туристов')
-    #manager_phone = models.CharField(max_length=20)
+    name = models.CharField(max_length=200, verbose_name='Название группы')
+    manager = models.CharField(max_length=200, verbose_name='Менеджер группы туристов')
+    manager_phone = models.CharField(max_length=20)
     STATUS = (
            ('r', 'сформирована'),
            ('e', 'на экскурсии'),
@@ -99,12 +120,15 @@ class Group(models.Model):
         help_text='Статус групп туристов',
     )
 
+    def __str__(self):
+        return self.name
+
+
 class Excursion(models.Model):
     """ Модель описывающая экскурсии на которые записан турист"""
     name = models.CharField(max_length=300, help_text='Введите название экскурсии')
+    note = models.TextField(max_length=500, verbose_name='Описание', blank=True, null=True)
     cost = models.DecimalField(max_digits=7, decimal_places=2)
-    time_begin = models.TimeField()
-    time_end = models.TimeField()
 
     def __str__(self):
         """ Функция отображающая название экскурсии"""

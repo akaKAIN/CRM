@@ -1,12 +1,12 @@
 {% extends "base_generic.html" %}
 {% block content %}
 
-    <h1>Редактируем: {{touristinst.name}}</h1>
+    <h1>Добавляем нового туриста</h1>
 
-    <form action="" method="post">
+    <form action="" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <table>
-        {{ form.as_table }}
+        {{ form }}
         </table>
         <input type="submit" value="Сохранить"/>
     </form>
