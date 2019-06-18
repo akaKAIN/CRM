@@ -2,13 +2,20 @@
 
 {% block content %}
   <h1>Список туристов</h1>
+  <a href="{% url 'create-tourist' %}">Добавить нового</a>
+  <h3>Поиск туристов</h3>
+  <form method="GET" action="" id="searchform">
+    <input class="searchfield" id="searchbox" name="q" type="text" value="{{ request.GET.q }}" placeholder="Search..."/>
+  </form>
   {% if tourist_list %}
   <ul>
     {% for tourist in tourist_list %}
       <li>
-        <a href="{{ tourist.get_absolute_url }}">{{ tourist.name }}</a> ({{tourist.phone}})
+        <input type="checkbox" onclick="return false;" {% if tourist.is_full_package_of_documents %}checked{% endif %} }/>
+        <a href="{{ tourist.get_absolute_url }}">{{ tourist.name }}</a> {{ tourist.phone }}
           {% if perms.tourists.can_edit %}
-            <a href="{% url 'edit-tourist' tourist.id %}">Edit</a>
+            <a href="{% url 'update-tourist' tourist.id %}">Редактировать</a>
+            <a href="{% url 'delete-tourist' tourist.id %}">Удалить</a>
           {% endif %}
       </li>
     {% endfor %}

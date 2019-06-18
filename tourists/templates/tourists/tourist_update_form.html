@@ -1,0 +1,14 @@
+{% extends "base_generic.html" %}
+{% block content %}
+
+    <h1>Редактируем: {{name}}</h1>
+
+    <form action="" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <table>
+        {{ form }}
+        </table>
+        <input type="submit" value="Сохранить"/>
+    </form>
+
+{% endblock %}
