@@ -5,8 +5,8 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.shortcuts import render_to_response
 
-from .models import Tourist, Hotel, Group, Excursion, Files
-from .forms import UpdateTouristModelForm, CreateTouristModelForm, UploadFileForm
+from .models import Tourist, Hotel, Group, Excursion
+from .forms import TouristModelForm
 
 
 def index(request):
@@ -63,26 +63,14 @@ class CreateTouristView(generic.edit.CreateView):
     model = Tourist
     template_name_suffix = '_create_form'
     success_url = '/tourists/'
-    form_class = CreateTouristModelForm
-
-
-def upload_file(request):
-    if request.method == 'POST':
-        form = UploadFileForm(request.POST, request.FILES)
-        if form.is_valid():
-            # file is saved
-            form.save()
-            return HttpResponseRedirect('/success/url/')
-    else:
-        form = UploadFileForm()
-    return render(request, 'upload.html', {'form': form})
+    form_class = TouristModelForm
 
 
 class UpdateTouristView(generic.edit.UpdateView):
     model = Tourist
     template_name_suffix = '_update_form'
     success_url = '/tourists/'
-    form_class = UpdateTouristModelForm
+    form_class = TouristModelForm
 
 
 class DeleteTouristView(generic.edit.DeleteView):

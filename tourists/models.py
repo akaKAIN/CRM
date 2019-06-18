@@ -10,14 +10,6 @@ class Tourist(models.Model):
     date_of_arrival = models.DateField(verbose_name='Дата прибытия')
     date_of_departure = models.DateField(verbose_name='Дата убытия')
     note = models.TextField(max_length=500, verbose_name='Примечание')
-    full_package_of_documents = models.BooleanField(verbose_name='Полный пакет документов',
-                                                    default=False,
-                                                    blank=True,
-                                                    null=True)
-    # Словарь для хранения отрезков времени, занятых питанием и экскурсиями
-    # для построения диаграммы Гантта
-    # { занятие : (время начала, время окончания)}
-    timeline = dict()
     STATUS = (
            ('r', 'заявка сформирована'),
            ('c', 'оплачено'),
@@ -34,7 +26,10 @@ class Tourist(models.Model):
         default='r',
         verbose_name='Статус туриста',
     )
-
+    visa = models.FileField(blank=True, null=True, upload_to='files', verbose_name='Копия визы')
+    contract = models.FileField(blank=True, null=True, upload_to='files', verbose_name='Копия договора')
+    passport = models.FileField(blank=True, null=True, upload_to='files', verbose_name='Копия паспорта')
+    others = models.FileField(blank=True, null=True, upload_to='files', verbose_name='Другие документы')
     nutrition = models.ManyToManyField('Nutrition',
                                        verbose_name='Питание')
     hotel = models.ManyToManyField('Hotel',
@@ -45,10 +40,6 @@ class Tourist(models.Model):
                               verbose_name='Группа')
     excursion = models.ManyToManyField('Excursion',
                                        verbose_name='Экскурсии')
-    file = models.ForeignKey('Files',
-                             blank=True,
-                             null=True,
-                             on_delete=models.CASCADE)
 
     class Meta:
         ordering = ['date_of_arrival']
@@ -67,17 +58,9 @@ class Tourist(models.Model):
         """ Функция отображающая все экскурсии на которые записан турист"""
         return ', '.join(excurs.name for excurs in self.excursion.all())
 
-
-class Files(models.Model):
-
-    visa = models.FileField(blank=True, null=True, upload_to='visa', verbose_name='Копия визы')
-    contract = models.FileField(blank=True, null=True, upload_to='contract', verbose_name='Копия договора')
-    passport = models.FileField(blank=True, null=True, upload_to='passport', verbose_name='Копия паспорта')
-    others = models.FileField(blank=True, null=True, upload_to='others', verbose_name='Другие документы')
-
-    class Meta:
-        verbose_name = "Файл"
-        verbose_name_plural = "Файлы"
+    def is_full_package_of_documents(self):
+        """ Функция для установки флажка Полный пакет документов, возвращает boolean"""
+        return self.visa.name and self.contract.name and self.passport.name
 
 
 class Nutrition(models.Model):

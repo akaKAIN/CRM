@@ -11,8 +11,8 @@
   <ul>
     {% for tourist in tourist_list %}
       <li>
-        {{tourist.full_package_of_documents}}
-        <a href="{{ tourist.get_absolute_url }}">{{ tourist.name }}</a> {{tourist.phone}}
+        <input type="checkbox" onclick="return false;" {% if tourist.is_full_package_of_documents %}checked{% endif %} }/>
+        <a href="{{ tourist.get_absolute_url }}">{{ tourist.name }}</a> {{ tourist.phone }}
           {% if perms.tourists.can_edit %}
             <a href="{% url 'update-tourist' tourist.id %}">Редактировать</a>
             <a href="{% url 'delete-tourist' tourist.id %}">Удалить</a>
