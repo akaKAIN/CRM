@@ -60,7 +60,8 @@ class Tourist(models.Model):
 
     def is_full_package_of_documents(self):
         """ Функция для установки флажка Полный пакет документов, возвращает boolean"""
-        return self.visa.name and self.contract.name and self.passport.name
+        if self.visa.name is not None and self.contract.name is not None and self.passport.name is not None:
+            return True
 
 
 class Nutrition(models.Model):

@@ -10,7 +10,7 @@ from .forms import TouristModelForm
 
 
 def index(request):
-    """Вью главной страницы"""
+    """Вью главной страницы """
 
     # Вычисляем общее количество туристов
     num_tourists = Tourist.objects.all().count()
