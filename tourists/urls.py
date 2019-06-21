@@ -12,4 +12,5 @@ urlpatterns = [
     path('groups/', views.GroupListView.as_view(), name='groups'),
     path('excurs/', views.ExcurListView.as_view(), name='excurs'),
     path('hotels/', views.HotelListView.as_view(), name='hotels'),
+    path('charts/bar/', views.gantt_chart, name='charts'),
 ]
