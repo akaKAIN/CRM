@@ -16,6 +16,7 @@
           {% if perms.tourists.can_edit %}
             <a href="{% url 'update-tourist' tourist.id %}">Редактировать</a>
             <a href="{% url 'delete-tourist' tourist.id %}">Удалить</a>
+            <a href="{% url 'charts' %}">Chart</a>
           {% endif %}
       </li>
     {% endfor %}
