@@ -24,7 +24,7 @@ def gantt_chart(request):
     # ...в день за указанный период
     values = qsstats.time_series(start_date, end_date, interval='days')
 
-    return render_to_response('template.html', {'values': values})
+    return render_to_response('gantt_chart.html', {'values': values})
 
 
 def index(request):
@@ -98,8 +98,29 @@ class DeleteTouristView(generic.edit.DeleteView):
     success_url = '/tourists/'
 
 
-class TouristDetailView(generic.DetailView):
-    model = Tourist
+def tourist_detail(request, pk):
+    tourist = Tourist.objects.get(id=pk)
+    total = 0
+    # просуммируем все услуги
+    for i in tourist.list_of_business():
+        total = total + i[3]
+    context = {
+        'name': tourist.name,
+        'phone': tourist.phone,
+        'email': tourist.email,
+        'date_of_arrival': tourist.date_of_arrival,
+        'date_of_departure': tourist.date_of_departure,
+        'note': tourist.note,
+        'status': tourist.status,
+        'list_of_services': tourist.list_of_business(),
+        'total': total
+        }
+
+    # Передаём HTML шаблону index.html данные контекста
+    return render(request, 'tourists/tourist_detail.html', context=context)
+
+
+
 
 class GroupListView(generic.ListView):
     model = Group

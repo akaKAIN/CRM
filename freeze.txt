@@ -1,0 +1,8 @@
+Django==2.2.2
+django-google-charts==0.1.1
+django-qsstats-magic==1.0.0
+pkg-resources==0.0.0
+python-dateutil==2.8.0
+pytz==2019.1
+six==1.12.0
+sqlparse==0.3.0

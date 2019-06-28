@@ -9,6 +9,15 @@ pylint = "*"
 [packages]
 django = "*"
 extras = "*"
+django-qsstats-magic = "*"
+django-google-charts = "*"
+dateutil = "*"
+plotly = "*"
+matplotlylib = "*"
+googlegantt = "*"
+gantt = "*"
+python-dateutil = "*"
+ganttchart = "*"
 
 [requires]
 python_version = "3.6"

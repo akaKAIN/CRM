@@ -1,11 +1,112 @@
 from django.contrib import admin
-from tourists.models import Tourist, Nutrition, Hotel, Group, Excursion
+from datetime import datetime
+from django.utils import timezone  
+from django import forms
+
+from tourists import models
+
+
+class DatelineForHotelInline(admin.TabularInline):
+    model = models.DatelineForHotel
+    extra = 1
+
+
+class TimelineForNutrition(admin.ModelAdmin):
+    model = models.TimelineForNutrition
+    fields = ('nutrition', ('time_from', 'time_to'), 'tourist')
+    readonly_fields = ['set_group']
+
+
+class TimelineForNutritionInline(admin.TabularInline):
+    model = models.TimelineForNutrition
+    extra = 1
+    fields = ('nutrition', ('time_from', 'time_to'), 'group')
+    readonly_fields = ['group']
+    show_change_link = True
+    
+    # то что уже съедено в прошлом нам не интересно  
+    def get_queryset(self, request):
+        query_set = super(TimelineForNutritionInline, self).get_queryset(request)
+        return query_set.filter(time_from__gte=datetime.now(tz=timezone.utc))
+
+
+class TimelineForExcursionInline(admin.TabularInline):
+    model = models.TimelineForExcursion
+    extra = 1
+    fields = ('excursion', ('time_from', 'time_to'),'group')
+    readonly_fields = ['group']
+    show_change_link = True
+
+
+class TimelineForNutritionAdmin(admin.ModelAdmin):
+    list_display = ('time_from', 'time_to', 'tourist', 'group')
+    date_hierarchy = 'time_from'
+    readonly_fields = ['group']
+
+
+class DatelineForHotelAdmin(admin.ModelAdmin):
+    list_display = ('date_from', 'date_to', 'tourist', 'number_of_days')
 
 
 class TouristAdmin(admin.ModelAdmin):
-    list_display = ('name', 'phone', 'date_of_arrival')
+    list_display = ('name', 'is_full_package_of_documents', 'phone', 'date_of_arrival')
     search_fields = ('name',)
     filter_horizontal = ('excursion',)
+    inlines = [
+        TimelineForNutritionInline,
+        TimelineForExcursionInline,
+        DatelineForHotelInline,
+    ]
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for obj in formset.deleted_objects:
+            obj.delete()
+        for instance in instances:
+            if instance.__class__.__name__== 'TimelineForNutrition':
+                # перед сохранением ищем подходящую группу, в которой турист может питаться
+                # получаем список времени начала питаний всех туристов в будущем
+                tl_nutr_infuture = models.TimelineForNutrition.objects.filter(
+                    time_from__gte=datetime.now(tz=timezone.utc)).exclude(id=instance.id)
+                # если подходящей группы нет, создаём её и присваиваем имя        
+                if instance.time_from not in [i.time_from for i in tl_nutr_infuture]:
+                    new_group_name = f"Питание в {instance.time_from}"
+                    new_group = models.Group.objects.create(name=new_group_name, status='f')
+                else:
+                    for j in [i for i in tl_nutr_infuture]:
+                        if instance.time_from == j.time_from:
+                            new_group = j.group 
+                            print(new_group)
+                instance.group = new_group    
+                instance.save()
+            elif instance.__class__.__name__== 'TimelineForExcursion':
+                # ищем подходящую по времени и названию экскурсию (добавить фильтр с названием экскурсии)   
+                tl_ex_infuture = models.TimelineForExcursion.objects.filter(
+                    time_from__gte=datetime.now(tz=timezone.utc)).filter(
+                    excursion__name=instance.excursion).exclude(id=instance.id)
+                # если подходящей группы нет, создаём её и присваиваем имя        
+                if instance.time_from not in [i.time_from for i in tl_ex_infuture]:
+                    new_group_name = f"Экскурсия {instance.excursion} в {instance.time_from}"
+                    new_group = models.Group.objects.create(name=new_group_name, status='f')
+                else:
+                    for j in [i for i in tl_ex_infuture]:
+                        if instance.time_from == j.time_from:
+                            new_group = j.group 
+                            print(new_group)
+                instance.group = new_group    
+                instance.save()
+        formset.save_m2m()
+
+    def is_full_package_of_documents(self, obj):
+        """ Функция для установки флажка Полный пакет документов, возвращает boolean"""
+        visa = models.Tourist.objects.get(id = obj.id).visa
+        have_visa = visa is not None and visa.name != ''
+        contract = models.Tourist.objects.get(id = obj.id).contract
+        have_contract = contract is not None and contract.name != ''
+        passport = models.Tourist.objects.get(id = obj.id).passport
+        have_passport = passport is not None and passport.name != ''
+        return have_visa and have_contract and have_contract
+
+    is_full_package_of_documents.boolean = True
 
 
 class HotelAdmin(admin.ModelAdmin):
@@ -19,10 +120,25 @@ class NutritionAdmin(admin.ModelAdmin):
     ordering = ('cost',)
 
 
-admin.site.register(Tourist, TouristAdmin)
-admin.site.register(Nutrition, NutritionAdmin)
-admin.site.register(Hotel, HotelAdmin)
-admin.site.register(Group)
-admin.site.register(Excursion)
+class ExcursionAdmin(admin.ModelAdmin):
+    list_display = ('name', 'cost')
+    ordering = ('cost',)
 
 
+class GroupAdmin(admin.ModelAdmin):
+    # нужно выбрать какие inline оказывать в данной группе 
+    inlines = [
+        #DatelineForHotelInline,
+        TimelineForNutritionInline,
+        TimelineForExcursionInline,
+    ]
+
+
+admin.site.register(models.Tourist, TouristAdmin)
+admin.site.register(models.Nutrition, NutritionAdmin)
+admin.site.register(models.Hotel, HotelAdmin)
+admin.site.register(models.Excursion)
+admin.site.register(models.Group, GroupAdmin)
+admin.site.register(models.TimelineForNutrition, TimelineForNutritionAdmin)
+admin.site.register(models.TimelineForExcursion)
+admin.site.register(models.DatelineForHotel, DatelineForHotelAdmin)
