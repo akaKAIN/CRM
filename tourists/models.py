@@ -2,7 +2,6 @@ from django.db import models
 from django.urls import reverse
 from itertools import chain
 from datetime import datetime
-from django.db.models import F
 
 
 class Tourist(models.Model):

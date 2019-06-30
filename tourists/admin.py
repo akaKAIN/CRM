@@ -116,31 +116,6 @@ class TouristAdmin(admin.ModelAdmin):
 
     is_full_package_of_documents.boolean = True
 
-    def get_urls(self):
-        urls = super().get_urls()
-        my_urls = [
-            path('my_view/', self.my_view),
-        ]
-        return my_urls + urls
-
-    def my_view(self, request):
-        tourist = models.Tourist.objects.get(id=pk)
-        total = 0
-        # просуммируем все услуги
-        for i in tourist.list_of_business():
-            total = total + i[3]
-        context = {
-            'name': tourist.name,
-            'phone': tourist.phone,
-            'email': tourist.email,
-            'date_of_arrival': tourist.date_of_arrival,
-            'date_of_departure': tourist.date_of_departure,
-            'note': tourist.note,
-            'status': tourist.status,
-            'list_of_services': tourist.list_of_business(),
-            'total': total
-            }
-        return TemplateResponse(request, 'tourists/tourist_detail.html', context)
 
 class HotelAdmin(admin.ModelAdmin):
     list_display = ('name', 'addres', 'phone')
@@ -176,7 +151,6 @@ class TimelineForExcursionGroupInline(admin.TabularInline):
 
 class GroupAdmin(admin.ModelAdmin):
     list_display = ('name', 'manager', 'manager_phone')
-    #if 
     inlines = [
         TimelineForNutritionGroupInline,
         TimelineForExcursionGroupInline,
