@@ -46,9 +46,9 @@ class Tourist(models.Model):
         """ Функция, отображающая имя туриста и его телефон"""
         return f"{self.name} {self.phone}"
 
-    def get_absolute_url(self):
-        """Возвращает ссылку для получения деталей по туристу"""
-        return reverse('tourist-detail', args=[str(self.id)])
+    #def get_absolute_url(self):
+    #    """Возвращает ссылку для получения деталей по туристу"""
+    #    return reverse('tourist-detail', args=[str(self.id)])
 
     def list_of_business(self):
         """ Функция, возвращающая список того, чем и когда занят турист """

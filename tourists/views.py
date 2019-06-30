@@ -98,28 +98,18 @@ class DeleteTouristView(generic.edit.DeleteView):
     success_url = '/tourists/'
 
 
-def tourist_detail(request, pk):
+def show_list_services(request, pk):
     tourist = Tourist.objects.get(id=pk)
     total = 0
     # просуммируем все услуги
     for i in tourist.list_of_business():
         total = total + i[3]
     context = {
-        'name': tourist.name,
-        'phone': tourist.phone,
-        'email': tourist.email,
-        'date_of_arrival': tourist.date_of_arrival,
-        'date_of_departure': tourist.date_of_departure,
-        'note': tourist.note,
-        'status': tourist.status,
         'list_of_services': tourist.list_of_business(),
         'total': total
         }
-
     # Передаём HTML шаблону index.html данные контекста
-    return render(request, 'tourists/tourist_detail.html', context=context)
-
-
+    return render(request, 'tourists/show_list_services.html', context=context)
 
 
 class GroupListView(generic.ListView):

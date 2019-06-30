@@ -1,15 +1,8 @@
-{% extends "base_generic.html" %}
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
 
 {% block content %}
-  <h1>{{ tourist.name }}</h1>
-
-  <p><strong>Имя туриста:</strong> {{ name }}</a></p>
-  <p><strong>Телефон:</strong> {{ phone }}</p>
-  <p><strong>Email:</strong> {{ email }}</p>
-  <p><strong>Дата прибытия:</strong> {{ date_of_arrival }}</p>
-  <p><strong>Дата отъезда:</strong> {{ date_of_departure }}</p>
-  <p><strong>Заметка:</strong> {{ note }}</p>
-  <p><strong>Статус:</strong> {{ status }}</p>
+  <h1>Список услуг, оказанных туристу {{ tourist.name }}</h1>
   <table>
     {% if list_of_services %}
       <caption>Список услуг:</caption>
