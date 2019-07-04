@@ -1,6 +1,6 @@
 from django.db import models
 from django.urls import reverse
-from datetime import datetime
+
 from itertools import chain
 from overview.make_gantt import *
 
@@ -86,8 +86,8 @@ class Tourist(models.Model):
         """ Функция берет список всех занятий туриста и рисует по ним диаграммы
         возвращает строковое представление HTML странички с диаграммами """
         all_business = chain(
-            DatelineForHotel.objects.filter(tourist=self).values_list(
-                'hotel__name', 'date_from', 'date_to'),
+            # DatelineForHotel.objects.filter(tourist=self).values_list(
+            #     'hotel__name', 'time_from', 'time_to'),
             TimelineForNutrition.objects.filter(tourist=self).values_list(
                 'nutrition__name', 'time_from', 'time_to'),
             TimelineForExcursion.objects.filter(tourist=self).values_list(
