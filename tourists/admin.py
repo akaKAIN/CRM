@@ -161,6 +161,7 @@ class EventAdmin(admin.ModelAdmin):
         TimelineForExcursionEventInline,
     ]
 
+
 admin.site.register(models.Group, GroupAdmin)
 admin.site.register(models.Tourist, TouristAdmin)
 admin.site.register(models.Nutrition, NutritionAdmin)
