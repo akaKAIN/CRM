@@ -4,7 +4,9 @@ from itertools import groupby
 from bokeh.plotting import figure, save, output_file
 from bokeh.models import ColumnDataSource, Range1d
 from bs4 import BeautifulSoup
+from django.utils import timezone
 import os
+
 import time
 
 # process_list = [
@@ -78,12 +80,13 @@ def partition_proc(event: list) -> list:
             temp_list.append([
                 event[0],
                 point,
-                datetime.datetime.combine(point.date(), time_end)
+                datetime.datetime.combine(point.date(), time_end, tzinfo=timezone.utc)
             ])
 
             point = datetime.datetime.combine(
                 point.date(),
-                time_end
+                time_end,
+                tzinfo=timezone.utc
             ) + datetime.timedelta(minutes=1)
         temp_list.append([event[0], point, event[2]])
 
