@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'tourists.apps.TouristsConfig',
     'googlecharts',
+    'overview',
 ]
 
 MIDDLEWARE = [
