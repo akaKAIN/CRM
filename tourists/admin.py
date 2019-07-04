@@ -21,15 +21,17 @@ class TimelineForNutritionInline(admin.TabularInline):
     
     # то что уже съедено в прошлом нам не интересно  
     def get_queryset(self, request):
-        query_set = super(TimelineForNutritionInline, self
-            ).get_queryset(request)
-        return query_set.filter(time_from__gte=datetime.datetime.now(tz=timezone.utc))
+        query_set = super(
+            TimelineForNutritionInline, self).get_queryset(request)
+        return query_set.filter(
+            time_from__gte=datetime.datetime.now(tz=timezone.utc)
+        )
 
 
 class TimelineForExcursionInline(admin.TabularInline):
     model = models.TimelineForExcursion
     extra = 1
-    fields = ('excursion', ('time_from', 'time_to'),'event')
+    fields = ('excursion', ('time_from', 'time_to'), 'event')
     readonly_fields = ['event']
     show_change_link = True
 
@@ -126,7 +128,7 @@ class HotelAdmin(admin.ModelAdmin):
     list_display = ('name', 'addres', 'phone')
     list_filter = ('cost_for_one_day',)
     ordering = ('-cost_for_one_day',)
-    list_filter =('name',)
+    list_filter = ('name',)
 
 
 class NutritionAdmin(admin.ModelAdmin):
@@ -145,6 +147,7 @@ class TimelineForNutritionEventInline(admin.TabularInline):
     fields = ('nutrition', 'time_from', 'time_to', 'tourist')
     can_delete = False
     readonly_fields = ('nutrition', 'time_from', 'time_to', 'tourist')
+
 
 class TimelineForExcursionEventInline(admin.TabularInline):
     model = models.TimelineForExcursion

@@ -78,8 +78,9 @@ class Tourist(models.Model):
     group = models.ForeignKey(
         'Group',
         on_delete=models.SET_NULL,
-        blank=True, null=True,
-        verbose_name = 'Группа'
+        blank=True,
+        null=True,
+        verbose_name='Группа'
     )
 
     def gantt_to_html(self) -> str:
@@ -145,14 +146,14 @@ class TimelineForNutrition(models.Model):
     tourist = models.ForeignKey(
         'Tourist',
         on_delete=models.CASCADE,
-        verbose_name = 'Турист'
+        verbose_name='Турист'
     )
     nutrition = models.ForeignKey(
         'Nutrition',
         on_delete=models.CASCADE,
         blank=True,
         null=True,
-        verbose_name = 'Питание'
+        verbose_name='Питание'
     )
     event = models.ForeignKey(
         'Event',
@@ -254,6 +255,7 @@ class Nutrition(models.Model):
     class Meta:
         verbose_name = 'Питание'
         verbose_name_plural = 'Питание'
+
 
 class Hotel(models.Model):
     """ Модель описывающая отель для туристов  """
