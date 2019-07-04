@@ -78,7 +78,8 @@ def partition_proc(event: list) -> list:
             temp_list.append([
                 event[0],
                 point,
-                datetime.datetime.combine(point.date(), time_end)])
+                datetime.datetime.combine(point.date(), time_end)
+            ])
 
             point = datetime.datetime.combine(
                 point.date(),
@@ -97,9 +98,6 @@ def main(process_list) -> list:
         process_list[index] = partition_proc(value)
     process_list = unpack_lists(process_list)
     return sorted(process_list, key=lambda x: x[1])
-
-
-# In[ ]:
 
 
 def diagram_drow_in_file(day_proc: list, url: str):
@@ -147,14 +145,16 @@ def start_gantt(original_list):
     diagrams_list = []
     correct_process_list = main(original_list)
     correct_process_list = [
-        list(elem) for _, elem in groupby(correct_process_list, lambda x: x[1].day)
+        list(elem) for _, elem in groupby(
+            correct_process_list,
+            lambda x: x[1].day
+        )
     ]
 
     # # Проверка вывода процессов
     # for i in correct_process_list:
     #     for k in i:
     #         print(k)
-
 
     for day_proc in correct_process_list:
         diagram_drow_in_file(day_proc, url)

@@ -10,20 +10,20 @@ from django.db.models import Count, Sum, DurationField, ExpressionWrapper, F
 from .models import *
 
 
-def gantt_chart(request):
-    start_date = DatelineForHotel.objects.order_by('date_from').values_list(
-                                                'date_from', flat=True).first()
-    end_date = DatelineForHotel.objects.order_by('date_to').values_list(
-                                                'date_to', flat=True).last()
-
-    queryset = DatelineForHotel.objects.all()
-
-    # считаем количество платежей...
-    qsstats = QuerySetStats(queryset, date_field='date_from', aggregate=Count('id'))
-    # ...в день за указанный период
-    values = qsstats.time_series(start_date, end_date, interval='days')
-
-    return render_to_response('gantt_chart.html', {'values': values})
+# def gantt_chart(request):
+#     start_date = DatelineForHotel.objects.order_by('date_from').values_list(
+#                                                 'date_from', flat=True).first()
+#     end_date = DatelineForHotel.objects.order_by('date_to').values_list(
+#                                                 'date_to', flat=True).last()
+#
+#     queryset = DatelineForHotel.objects.all()
+#
+#     # считаем количество платежей...
+#     qsstats = QuerySetStats(queryset, date_field='date_from', aggregate=Count('id'))
+#     # ...в день за указанный период
+#     values = qsstats.time_series(start_date, end_date, interval='days')
+#
+#     return render_to_response('gantt_chart.html', {'values': values})
 
 
 def show_list_services(request, pk):
