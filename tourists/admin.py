@@ -1,5 +1,5 @@
 from django.contrib import admin
-from datetime import datetime
+import datetime
 from django.utils import timezone 
 from django.urls import path
 
@@ -17,19 +17,21 @@ class TimelineForNutritionInline(admin.TabularInline):
     fields = ('nutrition', ('time_from', 'time_to'), 'event')
     readonly_fields = ['event']
     show_change_link = True
-    print(model._meta.fields)
+    # print(model._meta.fields)
     
     # то что уже съедено в прошлом нам не интересно  
     def get_queryset(self, request):
-        query_set = super(TimelineForNutritionInline, self
-            ).get_queryset(request)
-        return query_set.filter(time_from__gte=datetime.now(tz=timezone.utc))
+        query_set = super(
+            TimelineForNutritionInline, self).get_queryset(request)
+        return query_set.filter(
+            time_from__gte=datetime.datetime.now(tz=timezone.utc)
+        )
 
 
 class TimelineForExcursionInline(admin.TabularInline):
     model = models.TimelineForExcursion
     extra = 1
-    fields = ('excursion', ('time_from', 'time_to'),'event')
+    fields = ('excursion', ('time_from', 'time_to'), 'event')
     readonly_fields = ['event']
     show_change_link = True
 
@@ -51,11 +53,11 @@ class TouristAdmin(admin.ModelAdmin):
         for obj in formset.deleted_objects:
             obj.delete()
         for instance in instances:
-            if instance.__class__.__name__== 'TimelineForNutrition':
+            if instance.__class__.__name__ == 'TimelineForNutrition':
                 # перед сохранением ищем подходящую группу, в которой турист может питаться
                 # получаем список времени начала питаний всех туристов в будущем
                 tl_nutr_infuture = models.TimelineForNutrition.objects.filter(
-                    time_from__gte=datetime.now(tz=timezone.utc)).exclude(
+                    time_from__gte=datetime.datetime.now(tz=timezone.utc)).exclude(
                     id=instance.id)
                 # если подходящей группы нет, создаём её и присваиваем имя        
                 if instance.time_from not in tl_nutr_infuture.values_list('time_from', flat=True):
@@ -66,13 +68,13 @@ class TouristAdmin(admin.ModelAdmin):
                     for j in [i for i in tl_nutr_infuture]:
                         if instance.time_from == j.time_from:
                             new_event = j.event 
-                            print(new_event)
+                            # print(new_event)
                 instance.event = new_event    
                 instance.save()
             elif instance.__class__.__name__== 'TimelineForExcursion':
                 # ищем подходящую по времени и названию экскурсию
                 tl_ex_infuture = models.TimelineForExcursion.objects.filter(
-                    time_from__gte=datetime.now(tz=timezone.utc)).filter(
+                    time_from__gte=datetime.datetime.now(tz=timezone.utc)).filter(
                     excursion__name=instance.excursion).exclude(id=instance.id)
                 # если подходящей группы нет, создаём её и присваиваем имя
                 # и статус "формируется"        
@@ -84,7 +86,7 @@ class TouristAdmin(admin.ModelAdmin):
                     for j in [i for i in tl_ex_infuture]:
                         if instance.time_from == j.time_from:
                             new_event = j.event 
-                            print(new_event)
+                            # print(new_event)
                 instance.event = new_event    
                 instance.save()
             else:
@@ -93,11 +95,11 @@ class TouristAdmin(admin.ModelAdmin):
 
     def is_full_package_of_documents(self, obj):
         """ Функция для установки флажка Полный пакет документов"""
-        visa = models.Tourist.objects.get(id = obj.id).visa
+        visa = models.Tourist.objects.get(id=obj.id).visa
         have_visa = visa is not None and visa.name != ''
-        insurance = models.Tourist.objects.get(id = obj.id).insurance
+        insurance = models.Tourist.objects.get(id=obj.id).insurance
         have_insurance = insurance is not None and insurance.name != ''
-        passport = models.Tourist.objects.get(id = obj.id).passport
+        passport = models.Tourist.objects.get(id=obj.id).passport
         have_passport = passport is not None and passport.name != ''
         return have_visa and have_insurance and have_passport
 
@@ -126,7 +128,7 @@ class HotelAdmin(admin.ModelAdmin):
     list_display = ('name', 'addres', 'phone')
     list_filter = ('cost_for_one_day',)
     ordering = ('-cost_for_one_day',)
-    list_filter =('name',)
+    list_filter = ('name',)
 
 
 class NutritionAdmin(admin.ModelAdmin):
@@ -146,6 +148,7 @@ class TimelineForNutritionEventInline(admin.TabularInline):
     can_delete = False
     readonly_fields = ('nutrition', 'time_from', 'time_to', 'tourist')
 
+
 class TimelineForExcursionEventInline(admin.TabularInline):
     model = models.TimelineForExcursion
     extra = 0
@@ -160,6 +163,7 @@ class EventAdmin(admin.ModelAdmin):
         TimelineForNutritionEventInline,
         TimelineForExcursionEventInline,
     ]
+
 
 admin.site.register(models.Group, GroupAdmin)
 admin.site.register(models.Tourist, TouristAdmin)

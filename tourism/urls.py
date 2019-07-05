@@ -12,10 +12,11 @@ from django.contrib.auth.decorators import user_passes_test
 from tourists import views
 
 urlpatterns = [
+    path('crm/', include('overview.urls')),
     path('admin/', admin.site.urls),
     #path('tourists/', include('tourists.urls')),
     #path('', RedirectView.as_view(url='/tourists/')),
-    path('', RedirectView.as_view(url='/admin/')),
+    path('', RedirectView.as_view(url='/admin/'), name='home'),
     path('list_of_services/<int:pk>', views.show_list_services,
         	name='show_list_services'),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

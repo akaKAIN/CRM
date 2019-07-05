@@ -127,3 +127,6 @@ venv.bak/
 .mypy_cache/
 
 .vscode/
+\.idea/
+
+overview/gantt\.html
