@@ -3,16 +3,21 @@ from tourists.models import Tourist, Group
 
 
 # Create your views here.
-def crm(request):
-    groups = Group.objects.values('group_name')
+def re_dict() -> dict:
+    new_dict = {}
+    mans = Tourist.objects.all()
+    for man in mans:
+        new_dict.update({man.id: man.gantt_to_html()})
 
-    tourists = Tourist.objects.first()
-    gantt = tourists.gantt_to_html()
+    return new_dict
+
+
+def crm(request):
 
     context = {
-        'groups': groups,
-        'tourists': tourists,
-        'gantt': gantt,
+        'groups': Group.objects.filter(status='r').values(),
+        'tourists': Tourist.objects.all(),
+
 
     }
     return render(request, 'crm.html', context=context)
