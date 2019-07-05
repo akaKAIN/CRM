@@ -134,18 +134,15 @@ def diagram_drow_in_file(day_proc: list, url: str):
     save(G)
 
 
-def parsing_file(url):
+def parsing_file(url) -> str:
     with open(url) as html:
-        diagram = {}
         soup = BeautifulSoup(html, 'html.parser')
-        #         diagram['head'] = str(soup.head.contents[7]) + str(soup.head.contents[9])
-        diagram['body'] = str(soup.body.find_all(['div', 'script']))[1:-1]
-    return diagram
+    return str(soup.body.find_all(['div', 'script']))[1:-1]
 
 
 def start_gantt(original_list):
     url = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gantt.html')
-    diagrams_list = []
+    diagrams = ''
     correct_process_list = main(original_list)
     correct_process_list = [
         list(elem) for _, elem in groupby(
@@ -162,10 +159,9 @@ def start_gantt(original_list):
     for day_proc in correct_process_list:
         diagram_drow_in_file(day_proc, url)
         # Если диаграмма не будет успевать отрисовываться - установить достаточную временную задержку
-        # time.sleep(0.5)
-        diagram = parsing_file(url)
-        diagrams_list.append(diagram)
-    return diagrams_list
+        # time.sleep(0.8)
+        diagrams += parsing_file(url)
+    return diagrams
 
 
 # ### Запуск тела программы
