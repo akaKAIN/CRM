@@ -70,15 +70,20 @@ def unpack_lists(lists_in_list: list) -> list:
 
 
 def partition_proc(event: list) -> list:
-    delta = event[2].day - event[1].day
-    if delta > 0:
-        point = event[1]
+    """ Функция дробления многодневных процессов и их сортировки по времени начала процесса"""
+    event_title = event[0]
+    begin_event = min(event[1:])
+    end_event = max(event[1:])
+
+    delta = end_event.day - begin_event.day
+    if delta != 0:
+        point = begin_event
         temp_list = []
-        time_end = datetime.time(23, 59)
+        time_end = datetime.time(23, 59)        # Все суточные процессы заканиваются в полночь
 
         for _ in range(delta):
             temp_list.append([
-                event[0],
+                event_title,
                 point,
                 datetime.datetime.combine(point.date(), time_end, tzinfo=timezone.utc)
             ])
@@ -88,18 +93,25 @@ def partition_proc(event: list) -> list:
                 time_end,
                 tzinfo=timezone.utc
             ) + datetime.timedelta(minutes=1)
-        temp_list.append([event[0], point, event[2]])
+        temp_list.append([event_title, point, end_event])
 
         return temp_list
-    return event
+    return [event_title, begin_event, end_event]
 
+def valid_proccess(process: list) -> bool:
+    for elem in process:
+        if elem is None:
+            return False
+    return True
 
 def main(process_list) -> list:
-    for index, value in enumerate(process_list):
-        value = list(value)
-        # value.pop()
-        process_list[index] = partition_proc(value)
-    process_list = unpack_lists(process_list)
+    valid_process_list = []
+    for process in process_list:
+        process = list(process)
+        if valid_proccess(process):
+            valid_process_list.append(partition_proc(process))
+
+    process_list = unpack_lists(valid_process_list)
     return sorted(process_list, key=lambda x: x[1])
 
 
