@@ -51,28 +51,36 @@ class Tourist(models.Model):
     note = models.TextField(
         max_length=100,
         verbose_name='Примечание',
-        blank=True, null=True
+        blank=True,
+        null=True
     )
+
+    def documents_directory(instance, filename):
+        """Создание структуры хранения личных документов туристов"""
+        return f'{instance.id}({instance.name})/{filename}'
+
     visa = models.FileField(
         blank=True,
         null=True,
-        upload_to='files',
+        upload_to=documents_directory,
         verbose_name='Копия визы'
     )
     insurance = models.FileField(
-        blank=True, null=True,
-        upload_to='files',
+        blank=True,
+        null=True,
+        upload_to=documents_directory,
         verbose_name='Копия страховки'
     )
     passport = models.FileField(
         blank=True,
         null=True,
-        upload_to='files',
+        upload_to=documents_directory,
         verbose_name='Копия паспорта'
     )
     others = models.FileField(
-        blank=True, null=True,
-        upload_to='files',
+        blank=True,
+        null=True,
+        upload_to=documents_directory,
         verbose_name='Другие документы'
     )
     group = models.ForeignKey(
@@ -97,6 +105,16 @@ class Tourist(models.Model):
         list_of_business = [i for i in all_business]
         return start_gantt(list_of_business)
 
+    def check_doc(self):
+        doc_pack = Tourist.objects.filter(
+                id=self.id
+        ).values('visa', 'insurance', 'passport', 'others')
+        for pack in doc_pack:
+            for _, doc in pack.items():
+                if doc is None or doc == '':
+                    return False
+        return True
+
     def __str__(self):
         """ Функция, отображающая имя туриста и его телефон"""
         return f'{self.name} {self.phone}'
@@ -105,6 +123,8 @@ class Tourist(models.Model):
         verbose_name_plural = "Туристы" 
         permissions = (("can_edit", "Editing data"),
                        ("can_get_report", "Getting report"), )   
+
+# isinstance(model._meta.get_field('g'), UrlField)
 
 
 class Event(models.Model):

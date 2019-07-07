@@ -47,7 +47,7 @@
                     <tr>
                         <th scope="row">{{ forloop.counter }}</th>
                         <td class="tourist_name">{{ tourist.name }}</td>
-                        <td class="simple">(да/нет): --</td>
+                        <td class="simple">{% if tourist.check_doc %} Да {% else %} Нет {% endif %}</td>
                         <td class="simple">Гостинница</td>
                         <td class="simple">Питание</td>
 
