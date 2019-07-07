@@ -114,7 +114,7 @@ class TouristInline(admin.TabularInline):
 
 class GroupAdmin(admin.ModelAdmin):
     list_display = (
-        'date_of_arrival', 'date_of_departure'
+        'group_name', 'date_of_arrival', 'date_of_departure'
         )
     search_fields = ('name',)
     date_hierarchy = 'date_of_arrival'
