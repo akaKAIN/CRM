@@ -1,5 +1,6 @@
 from django.db import models
 from django.urls import reverse
+from django.utils.html import format_html
 
 from itertools import chain
 from overview.make_gantt import *
@@ -18,7 +19,7 @@ class Group(models.Model):
                                          null=True, blank=True
                                          )
     STATUS = (
-           ('r', 'заявка сформирована'),
+           ('f', 'группа формируется'),
            ('c', 'группа прибыла'),
            ('g', 'группа уехала'),
         )
@@ -82,6 +83,38 @@ class Tourist(models.Model):
         null=True,
         verbose_name='Группа'
     )
+
+    STATUS = (
+           ('w', 'ожидается приезд'),
+           ('n', 'ничем не занят'),
+           ('e', 'на экскурсии'),
+           ('p', 'питается'),
+           ('y', 'уехал'),
+           ('g', 'не в группе'),
+        )
+
+    status = models.CharField(
+        max_length=1,
+        choices=STATUS,
+        blank=True,
+        default='w',
+        verbose_name='Статус туриста',
+    )
+
+    def colored_name(self):
+        if self.status == 'w': color = 'ff9900'
+        elif self.status == 'n': color = '66ff33'
+        elif self.status == 'e': color = '0000ff'
+        elif self.status == 'p': color = 'ffcc00'
+        elif self.status == 'y': color = '000000'
+        elif self.status == 'g': color = 'ff0000'
+        else:    
+            color = 'grey'
+        return format_html('<b><span style="color: #{};">{}</span><b>',
+                           color, self.name)
+
+    colored_name.short_description = 'ФИО Туриста'
+    colored_name.allow_tags = True    
 
     def gantt_to_html(self) -> str:
         """ Функция берет список всех занятий туриста и рисует по ним диаграммы
@@ -201,8 +234,8 @@ class DatelineForHotel(models.Model):
     """ Промежуточная модель для хранения дат заселения и выселения из отеля """
     tourist = models.ForeignKey('Tourist', on_delete=models.CASCADE)
     hotel = models.ForeignKey('Hotel', on_delete=models.CASCADE)
-    time_from = models.DateField(blank=True, verbose_name='Дата заселения')
-    time_to = models.DateField(blank=True, verbose_name='Дата выселения')
+    time_from = models.DateField(verbose_name='Дата заселения')
+    time_to = models.DateField(verbose_name='Дата выселения')
 
     class Meta:
         get_latest_by = "time_from"

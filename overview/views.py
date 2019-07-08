@@ -15,7 +15,7 @@ def re_dict() -> dict:
 def crm(request):
 
     context = {
-        'groups': Group.objects.filter(status='r').values(),
+        'groups': Group.objects.filter(status='f').values(),
         'tourists': Tourist.objects.all(),
 
 

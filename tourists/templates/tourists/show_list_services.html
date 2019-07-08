@@ -2,20 +2,19 @@
 {% load i18n admin_urls static admin_modify %}
 
 {% block content %}
-  <h1>Список услуг, оказанных туристу {{ tourist.name }} (статус {{ tourist.status }})</h1>
+  <h1>Список услуг, оказанных туристу {{ tourist.name }}</h1>
   <table>
     {% if list_of_services %}
-      <caption>Список услуг:</caption>
       <th>Наименование</th><th>начало</th><th>окончание</th><th>кол-во</th><th>стоимость за 1 ед.</th>
       {% for service in list_of_services %}
     <tr><td>{{ service.name }}</td>
         <td>{{ service.time_from }}</td>
         <td>{{ service.time_to }}</td>
         <td>{% if service.num.days %} {{ service.num.days }} дней {% else %} {{ service.num }} шт. {% endif %}</td>
-        <td>{{ service.cost }}</td></tr>
+        <td>{{ service.cost }} руб.</td></tr>
       {% endfor %}
   </table>
-        <h3> Итого: оказано услуг на сумму {{ total }}</h3>
+        <h3> Итого: оказано услуг на сумму {{ total }} руб.</h3>
     {% else %}
         <h3>У данного туриста нет оказанных услуг</h3>
     {% endif %}

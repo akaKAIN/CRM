@@ -1,45 +1,74 @@
 from django.contrib import admin
-import datetime
+from datetime import datetime
 from django.utils import timezone 
 from django.urls import path
+from django.shortcuts import redirect
+from django.utils.encoding import smart_str
+from django.contrib import messages
+from django.forms import ModelForm
+from django.conf.urls import url
+from django.utils.html import format_html
+from django.urls import reverse
 
-from tourists import models
+from tourists.models import (TimelineForNutrition, DatelineForHotel, 
+TimelineForExcursion, Tourist, Event, Group, Hotel, Excursion, Nutrition)
+from tourists import widgets, views
 
 
 class DatelineForHotelInline(admin.TabularInline):
-    model = models.DatelineForHotel
+    model = DatelineForHotel
     extra = 1
 
 
 class TimelineForNutritionInline(admin.TabularInline):
-    model = models.TimelineForNutrition
+    model = TimelineForNutrition
     extra = 1
     fields = ('nutrition', ('time_from', 'time_to'), 'event')
     readonly_fields = ['event']
     show_change_link = True
-    # print(model._meta.fields)
+    print(model._meta.fields)
     
     # то что уже съедено в прошлом нам не интересно  
     def get_queryset(self, request):
-        query_set = super(
-            TimelineForNutritionInline, self).get_queryset(request)
-        return query_set.filter(
-            time_from__gte=datetime.datetime.now(tz=timezone.utc)
-        )
+        query_set = super(TimelineForNutritionInline, self
+            ).get_queryset(request)
+        return query_set.filter(time_from__gte=datetime.now(tz=timezone.utc))
 
 
 class TimelineForExcursionInline(admin.TabularInline):
-    model = models.TimelineForExcursion
+    model = TimelineForExcursion
     extra = 1
-    fields = ('excursion', ('time_from', 'time_to'), 'event')
+    fields = ('excursion', ('time_from', 'time_to'),'event')
     readonly_fields = ['event']
     show_change_link = True
 
 
+class TouristAdminForm(ModelForm):
+
+    class Meta:
+        model = Tourist
+        fields = ('name',
+                  'phone',
+                  'email',
+                  'note',
+                  'visa',
+                  'insurance',
+                  'passport',
+                  'others',
+                  'group')
+        widgets = {'others':widgets.MultiFileInput}
+
+
 class TouristAdmin(admin.ModelAdmin):
     list_display = (
-        'name', 'is_full_package_of_documents', 'phone'
+        'colored_name', 
+        'phone',
+        'is_full_package_of_documents', 
+        'status',
+        'tourist_actions', 
+        'note'
         )
+
     search_fields = ('name',)
     filter_horizontal = ('excursion',)
     inlines = [
@@ -48,76 +77,101 @@ class TouristAdmin(admin.ModelAdmin):
         DatelineForHotelInline,
     ]
 
+    form = TouristAdminForm
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            url(
+                r'^(?P<pk>.+)/list_of_services/$',
+                self.admin_site.admin_view(views.show_list_services),
+                name='show-list-services'),
+            #url(
+            #    r'^(?P<pk>.+)/gantt_chart/$',
+            #    self.admin_site.admin_view(views.gantt_chart),
+            #    name='gant-chart',
+            #),
+        ]
+        return custom_urls + urls
+
+    def tourist_actions(self, obj):
+        return format_html(
+            '<a class="button" href="{}">Список услуг</a>&nbsp;',
+            #'<a class="button" href="{}">Диаграмма Ганта</a>',
+            reverse('admin:show-list-services', args=[obj.pk])#,
+            #reverse('admin:gant-chart', args=[obj.pk]),
+        )
+    tourist_actions.short_description = 'Кнопки'
+    tourist_actions.allow_tags = True    
+
     def save_formset(self, request, form, formset, change):
         instances = formset.save(commit=False)
         for obj in formset.deleted_objects:
             obj.delete()
         for instance in instances:
-            if instance.__class__.__name__ == 'TimelineForNutrition':
-                # перед сохранением ищем подходящую группу, в которой турист может питаться
-                # получаем список времени начала питаний всех туристов в будущем
-                tl_nutr_infuture = models.TimelineForNutrition.objects.filter(
-                    time_from__gte=datetime.datetime.now(tz=timezone.utc)).exclude(
-                    id=instance.id)
-                # если подходящей группы нет, создаём её и присваиваем имя        
-                if instance.time_from not in tl_nutr_infuture.values_list('time_from', flat=True):
-                    new_event_name = f"Питание в {instance.time_from}"
-                    new_event = models.Event.objects.create(name=new_event_name, 
-                                                            status='p')
+            if isinstance(instance, TimelineForNutrition):
+                # перед сохранением ищем подходящую группу, в которой турист 
+                # может питаться 
+                tl_nutr = TimelineForNutrition.objects.filter(
+                    time_from=instance.time_from).exclude(
+                    id=instance.id).first()
+                # если никто в это время не питается и запрос вернулся пустой
+                # cоздаём новое событие для Питания
+                if not tl_nutr:
+                    new_event = Event.objects.create(name=
+                        f"Питание в {instance.time_from}",status='p')
+                    instance.event = new_event
                 else:
-                    for j in [i for i in tl_nutr_infuture]:
-                        if instance.time_from == j.time_from:
-                            new_event = j.event 
-                            # print(new_event)
-                instance.event = new_event    
+                    instance.event = tl_nutr.event 
                 instance.save()
-            elif instance.__class__.__name__== 'TimelineForExcursion':
+            elif isinstance(instance, TimelineForExcursion):
                 # ищем подходящую по времени и названию экскурсию
-                tl_ex_infuture = models.TimelineForExcursion.objects.filter(
-                    time_from__gte=datetime.datetime.now(tz=timezone.utc)).filter(
-                    excursion__name=instance.excursion).exclude(id=instance.id)
-                # если подходящей группы нет, создаём её и присваиваем имя
-                # и статус "формируется"        
-                if instance.time_from not in tl_ex_infuture.values_list('time_from', flat=True):
-                    new_event_name = f"Экскурсия {instance.excursion} в {instance.time_from}"
-                    new_event = models.Event.objects.create(name=new_event_name, 
-                                                            status='p')
+                tl_ex = TimelineForExcursion.objects.filter(
+                    time_from=instance.time_from).filter(
+                    excursion__name=instance.excursion).exclude(
+                    id=instance.id).first()
+                print(tl_ex)    
+                # если никто в это время на эту экскурсию не идёт и запрос 
+                # вернулся пустой, создаём новое событие для Экскурсии
+                if not tl_ex:
+                    new_event = Event.objects.create(name=
+                      f"Экскурсия {instance.excursion} в {instance.time_from}", 
+                                                     status='p')
+                    instance.event = new_event
                 else:
-                    for j in [i for i in tl_ex_infuture]:
-                        if instance.time_from == j.time_from:
-                            new_event = j.event 
-                            # print(new_event)
-                instance.event = new_event    
+                    instance.event = tl_ex.event
                 instance.save()
             else:
-                instance.save()    
+                instance.save()  
         formset.save_m2m()
 
     def is_full_package_of_documents(self, obj):
         """ Функция для установки флажка Полный пакет документов"""
-        visa = models.Tourist.objects.get(id=obj.id).visa
+        visa = Tourist.objects.get(id = obj.id).visa
         have_visa = visa is not None and visa.name != ''
-        insurance = models.Tourist.objects.get(id=obj.id).insurance
+        insurance = Tourist.objects.get(id = obj.id).insurance
         have_insurance = insurance is not None and insurance.name != ''
-        passport = models.Tourist.objects.get(id=obj.id).passport
+        passport = Tourist.objects.get(id = obj.id).passport
         have_passport = passport is not None and passport.name != ''
         return have_visa and have_insurance and have_passport
 
     is_full_package_of_documents.boolean = True
+    is_full_package_of_documents.short_description = "Полный пакет документов"
 
 
 class TouristInline(admin.TabularInline):
-    model = models.Tourist
+    model = Tourist
     extra = 3
     fields = ('name', 'phone', 'email', 'note', )
 
 
 class GroupAdmin(admin.ModelAdmin):
     list_display = (
-        'date_of_arrival', 'date_of_departure'
+        'group_name', 'status', 'date_of_arrival', 'date_of_departure'
         )
     search_fields = ('name',)
     date_hierarchy = 'date_of_arrival'
+    list_filter = ('status', )
 
     inlines = [
         TouristInline,
@@ -128,7 +182,7 @@ class HotelAdmin(admin.ModelAdmin):
     list_display = ('name', 'addres', 'phone')
     list_filter = ('cost_for_one_day',)
     ordering = ('-cost_for_one_day',)
-    list_filter = ('name',)
+    list_filter =('name',)
 
 
 class NutritionAdmin(admin.ModelAdmin):
@@ -142,15 +196,14 @@ class ExcursionAdmin(admin.ModelAdmin):
 
 
 class TimelineForNutritionEventInline(admin.TabularInline):
-    model = models.TimelineForNutrition
+    model = TimelineForNutrition
     extra = 0
     fields = ('nutrition', 'time_from', 'time_to', 'tourist')
     can_delete = False
     readonly_fields = ('nutrition', 'time_from', 'time_to', 'tourist')
 
-
 class TimelineForExcursionEventInline(admin.TabularInline):
-    model = models.TimelineForExcursion
+    model = TimelineForExcursion
     extra = 0
     fields = ('excursion', 'time_from', 'time_to', 'tourist')
     can_delete = False
@@ -159,15 +212,16 @@ class TimelineForExcursionEventInline(admin.TabularInline):
 
 class EventAdmin(admin.ModelAdmin):
     list_display = ('name', 'manager', 'manager_phone')
+
     inlines = [
         TimelineForNutritionEventInline,
         TimelineForExcursionEventInline,
     ]
 
 
-admin.site.register(models.Group, GroupAdmin)
-admin.site.register(models.Tourist, TouristAdmin)
-admin.site.register(models.Nutrition, NutritionAdmin)
-admin.site.register(models.Hotel, HotelAdmin)
-admin.site.register(models.Excursion, ExcursionAdmin)
-admin.site.register(models.Event, EventAdmin)
+admin.site.register(Group, GroupAdmin)
+admin.site.register(Tourist, TouristAdmin)
+admin.site.register(Nutrition, NutritionAdmin)
+admin.site.register(Hotel, HotelAdmin)
+admin.site.register(Excursion, ExcursionAdmin)
+admin.site.register(Event, EventAdmin)
