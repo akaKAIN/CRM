@@ -1,7 +1,7 @@
 from django.urls import path
 
-from overview.views import crm
+from overview.views import CRM
 
 urlpatterns = [
-    path('', crm, name='crm_url'),
+    path('', CRM.as_view(), name='crm_url'),
 ]

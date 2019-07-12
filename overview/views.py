@@ -1,23 +1,19 @@
 from django.shortcuts import render
 from tourists.models import Tourist, Group
+from django.views.generic import TemplateView
 
 
-# Create your views here.
-def re_dict() -> dict:
-    new_dict = {}
-    mans = Tourist.objects.all()
-    for man in mans:
-        new_dict.update({man.id: man.gantt_to_html()})
+class CRM(TemplateView):
+    template_name = 'overview/crm.html'
 
-    return new_dict
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        groups_with_tourists = {}
+        groups = Group.objects.exclude(status='g')
+        for group in groups:
+            groups_with_tourists.update({group: Tourist.objects.filter(group=group.id).order_by('name')})
 
-
-def crm(request):
-
-    context = {
-        'groups': Group.objects.filter(status='f').values(),
-        'tourists': Tourist.objects.all(),
-
-
-    }
-    return render(request, 'crm.html', context=context)
+        context.update(
+            {'groups': groups_with_tourists}
+        )
+        return context

@@ -1,19 +1,18 @@
 from django.db import models
-from django.urls import reverse
-from django.utils.html import format_html
-
 from itertools import chain
+from django.core.exceptions import ValidationError
+from django.db.models import Q
+
 from overview.make_gantt import *
 
 
 class Group(models.Model):
     """ Модель, описывающая группы туристов """
-    group_name = models.CharField(max_length=50,
-                                  verbose_name='Название группы'
+    group_name = models.CharField(verbose_name='Название группы',
+                                  max_length=50
                                   )
     date_of_arrival = models.DateField(verbose_name='Дата прибытия группы',
-                                       null=True,
-                                       blank=True
+                                       null=True, blank=True
                                        )
     date_of_departure = models.DateField(verbose_name='Дата убытия группы',
                                          null=True, blank=True
@@ -24,97 +23,94 @@ class Group(models.Model):
            ('g', 'группа уехала'),
         )
 
-    status = models.CharField(
+    status = models.CharField(verbose_name='Статус группы',
         max_length=1,
         choices=STATUS,
         blank=True,
-        default='r',
-        verbose_name='Статус группы',
+        default='f'
     )
 
     def __str__(self):
         return f' Группа {self.group_name}'
 
+    def clean(self):
+        if not self.date_of_arrival or not self.date_of_departure:
+            raise ValidationError("Заполните пустые поля")
+        if self.date_of_arrival > self.date_of_departure:
+            raise ValidationError(
+                'Дата убытия не может быть раньше даты прибытия')
+
     class Meta:
+        verbose_name = "Группу" 
         verbose_name_plural = "Группы" 
         ordering = ['date_of_arrival']
 
 
 class Tourist(models.Model):
     """ Модель, описывающая каждого туриста по отдельности  """
-    name = models.CharField(max_length=200, verbose_name='ФИО Туриста')
-    phone = models.CharField(max_length=20, verbose_name='Телефон')
-    email = models.EmailField(
+    name = models.CharField(verbose_name='ФИО Туриста',
+        max_length=200
+        )
+    phone = models.CharField(verbose_name='Телефон',
+        max_length=20)
+    email = models.EmailField(verbose_name='email',
         max_length=50,
-        blank=True,
-        verbose_name='email'
-    )
-    note = models.TextField(
-        max_length=100,
-        verbose_name='Примечание',
         blank=True, null=True
     )
-    visa = models.FileField(
-        blank=True,
-        null=True,
-        upload_to='files',
-        verbose_name='Копия визы'
+    note = models.TextField(verbose_name='Примечание',
+        max_length=100,
+        blank=True, null=True
     )
-    insurance = models.FileField(
-        blank=True, null=True,
-        upload_to='files',
-        verbose_name='Копия страховки'
-    )
-    passport = models.FileField(
-        blank=True,
-        null=True,
-        upload_to='files',
-        verbose_name='Копия паспорта'
-    )
-    others = models.FileField(
-        blank=True, null=True,
-        upload_to='files',
-        verbose_name='Другие документы'
-    )
-    group = models.ForeignKey(
-        'Group',
+    group = models.ForeignKey('Group', verbose_name='Группа',
         on_delete=models.SET_NULL,
-        blank=True,
-        null=True,
-        verbose_name='Группа'
+        blank=True, null=True
+    )
+    is_paid = models.BooleanField(verbose_name='оплачено',
+        default=False
     )
 
-    STATUS = (
-           ('w', 'ожидается приезд'),
-           ('n', 'ничем не занят'),
-           ('e', 'на экскурсии'),
-           ('p', 'питается'),
-           ('y', 'уехал'),
-           ('g', 'не в группе'),
-        )
+    class Meta:
+        verbose_name = 'Туриста'
+        verbose_name_plural = "Туристы" 
 
-    status = models.CharField(
-        max_length=1,
-        choices=STATUS,
-        blank=True,
-        default='w',
-        verbose_name='Статус туриста',
-    )
+    @property
+    def status(self):
+        ''' Функция для установки вычисляемого поля статус '''
+        from datetime import datetime 
+        from django.utils import timezone 
 
-    def colored_name(self):
-        if self.status == 'w': color = 'ff9900'
-        elif self.status == 'n': color = '66ff33'
-        elif self.status == 'e': color = '0000ff'
-        elif self.status == 'p': color = 'ffcc00'
-        elif self.status == 'y': color = '000000'
-        elif self.status == 'g': color = 'ff0000'
-        else:    
-            color = 'grey'
-        return format_html('<b><span style="color: #{};">{}</span><b>',
-                           color, self.name)
+        is_await = Tourist.objects.filter(id=self.id, 
+                group__date_of_arrival__gte=datetime.now(tz=timezone.utc)
+                )
+        is_left = Tourist.objects.filter(id=self.id, 
+                group__date_of_departure__lte=datetime.now(tz=timezone.utc)
+                )
+        is_nutr = TimelineForNutrition.objects.filter(tourist=self.id, 
+            time_from__lte=datetime.now(tz=timezone.utc), 
+            time_to__gte=datetime.now(tz=timezone.utc)
+            )
+        on_excur = TimelineForExcursion.objects.filter(tourist=self.id, 
+            time_from__lte=datetime.now(tz=timezone.utc),
+            time_to__gte=datetime.now(tz=timezone.utc) 
+            )
+        in_hotel = DatelineForHotel.objects.filter(tourist=self.id, 
+            time_from__lte=datetime.now(tz=timezone.utc),
+            time_to__gte=datetime.now(tz=timezone.utc)
+            )
 
-    colored_name.short_description = 'ФИО Туриста'
-    colored_name.allow_tags = True    
+        if is_await:
+            _status = 'ожидается приезд'
+        elif is_left:
+            _status = 'уехал'
+        elif not in_hotel:
+            _status = 'не заселен в гостиницу'
+        elif not is_nutr or not on_excur:
+            _status = 'ничем не занят'
+        else:
+            _status = ' - '
+
+        return _status 
+
 
     def gantt_to_html(self) -> str:
         """ Функция берет список всех занятий туриста и рисует по ним диаграммы
@@ -134,34 +130,45 @@ class Tourist(models.Model):
         """ Функция, отображающая имя туриста и его телефон"""
         return f'{self.name} {self.phone}'
 
+
+class Files(models.Model):
+    visa = models.FileField(verbose_name='Копия визы',
+        blank=True, null=True,
+        upload_to='files'
+        )
+    insurance = models.FileField(verbose_name='Копия страховки',
+        blank=True, null=True,
+        upload_to='files'
+        )
+    passport = models.FileField(verbose_name='Копия паспорта',
+        blank=True, null=True,
+        upload_to='files'
+        )
+    others = models.FileField(verbose_name='Другие документы',
+        blank=True, null=True,
+        upload_to='files'
+        )
+    tourist = models.ForeignKey('Tourist', verbose_name='Турист',
+        on_delete=models.CASCADE,
+        blank=True, null=True
+        )
     class Meta:
-        verbose_name_plural = "Туристы" 
-        permissions = (("can_edit", "Editing data"),
-                       ("can_get_report", "Getting report"), )   
+        verbose_name = 'Файл'
+        verbose_name_plural = "Файлы"
 
 
 class Event(models.Model):
     """ Модель, описывающая события, в которых могут участвовать туристы  """
     name = models.CharField(max_length=200, verbose_name='Название события')
-    manager = models.CharField(
+    manager = models.CharField(verbose_name='Менеджер группы туристов',
         max_length=200,
-        verbose_name='Менеджер группы туристов',
         blank=True
-    )
-    manager_phone = models.CharField(max_length=20, blank=True)
-    STATUS = (
-           ('p', 'планируется'),
-           ('c', 'длится'),
-           ('e', 'закончилось')
         )
 
-    status = models.CharField(
-        max_length=1,
-        choices=STATUS,
+    manager_phone = models.CharField(verbose_name='Телефон менеджера',
+        max_length=20, 
         blank=True,
-        default='p',
-        help_text='Статус события',
-    )
+        )
 
     def __str__(self):
         return self.name
@@ -171,91 +178,118 @@ class Event(models.Model):
         verbose_name_plural = 'События'
 
 
-class TimelineForNutrition(models.Model):
-    """ Промежуточная модель для хранения времени начала и окончания питания """
+class Timeline(models.Model):
+    ''' Абстрактная модель для временных осей '''
     time_from = models.DateTimeField(verbose_name='Начало')
     time_to = models.DateTimeField(verbose_name='Окончание')
-
-    tourist = models.ForeignKey(
-        'Tourist',
+    tourist = models.ForeignKey('Tourist', verbose_name='Турист',
+        on_delete=models.CASCADE
+        )
+    event = models.ForeignKey('Event', verbose_name='Событие',
         on_delete=models.CASCADE,
-        verbose_name='Турист'
-    )
-    nutrition = models.ForeignKey(
-        'Nutrition',
-        on_delete=models.CASCADE,
-        blank=True,
-        null=True,
-        verbose_name='Питание'
-    )
-    event = models.ForeignKey(
-        'Event',
-        on_delete=models.SET_NULL,
-        blank=True,
-        null=True,
-        verbose_name='Событие'
-    )
+        blank=True, null=True
+        )
 
     class Meta:
-        get_latest_by = "date_from"
+        abstract = True       
+        get_latest_by = "date_from" 
+
+    def clean(self):
+        if not self.time_from or not self.time_to:
+            raise ValidationError("Заполните пустые поля")
+        
+        if self.time_from > self.time_to: 
+            raise ValidationError(
+               'Время начала не может быть больше времени окончания')
+
+        # Проверим, нет ли у этого туриста других дел на это время
+
+        tle = TimelineForExcursion.objects.filter(Q(tourist=self.tourist),
+            Q(time_from__gte=self.time_from, time_from__lte=self.time_to) |
+            Q(time_to__gte=self.time_from, time_to__lte=self.time_to)
+            ).exclude(id=self.id)
+
+        tln = TimelineForNutrition.objects.filter(Q(tourist=self.tourist),
+            Q(time_from__gte=self.time_from, time_from__lte=self.time_to) |
+            Q(time_to__gte=self.time_from, time_to__lte=self.time_to)
+            ).exclude(id=self.id)
+        # Если хотя бы один запрос вернулся не пустым
+        if tle or tln:
+            raise ValidationError('Выберите другое время, это уже занято') 
+
+
+class TimelineForNutrition(Timeline):
+    """ Промежуточная модель для хранения времени начала и окончания питания """
+    
+    nutrition = models.ForeignKey('Nutrition', verbose_name='Питание',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True
+        )
+
+    class Meta:
         verbose_name_plural = "Время для питания"
 
-        
-class TimelineForExcursion(models.Model):
+       
+class TimelineForExcursion(Timeline):
     """ Промежуточная модель для хранения времени начала и окончания экскурсий """
-    time_from = models.DateTimeField(verbose_name='начало экскурсии')
-    time_to = models.DateTimeField(verbose_name='окончание экскурсии')
-    tourist = models.ForeignKey(
-        'Tourist',
-        on_delete=models.CASCADE,
-        verbose_name='Турист'
-    )
-    excursion = models.ForeignKey(
-        'Excursion',
+    excursion = models.ForeignKey('Excursion', verbose_name='Экскурсии',
         on_delete=models.SET_NULL,
         blank=True,
-        null=True,
-        verbose_name='Экскурсии'
-    )
-    event = models.ForeignKey(
-        'Event',
-        on_delete=models.CASCADE,
-        blank=True,
-        null=True,
-        verbose_name='Событие'
-    )
+        null=True
+        )
 
     class Meta:
-        get_latest_by = "date_from"
         verbose_name_plural = "Время для экскурсий"
+ 
 
-
-class DatelineForHotel(models.Model):
+class DatelineForHotel(Timeline):
     """ Промежуточная модель для хранения дат заселения и выселения из отеля """
-    tourist = models.ForeignKey('Tourist', on_delete=models.CASCADE)
-    hotel = models.ForeignKey('Hotel', on_delete=models.CASCADE)
-    time_from = models.DateField(verbose_name='Дата заселения')
-    time_to = models.DateField(verbose_name='Дата выселения')
+    hotel = models.ForeignKey('Hotel', verbose_name='Отели', 
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True
+        )
 
     class Meta:
-        get_latest_by = "time_from"
-        verbose_name_plural = "Временная ось для пребывания в отелях"
+        verbose_name_plural = "Пребывание в отелях"
+
+    def clean(self):
+        if not self.time_from or not self.time_to:
+            raise ValidationError("Заполните пустые поля")
+        
+        if self.time_from > self.time_to: 
+            raise ValidationError(
+               'Время заселения не может быть меньше времени выселения')
+
+        # Проверим, не живет ли турист в другой гостинице это время
+
+        dlh = DatelineForHotel.objects.filter(Q(tourist=self.tourist),
+            Q(time_from__gte=self.time_from, time_from__lte=self.time_to) |
+            Q(time_to__gte=self.time_from, time_to__lte=self.time_to)
+            ).exclude(id=self.id)
+
+        # Если запрос вернулся не пустым
+        if dlh:
+            raise ValidationError(f'Выберите другое время, это уже занято')     
 
 
 class Excursion(models.Model):
     """ Модель описывающая экскурсии, которые посещает турист"""
-    name = models.CharField(
-        max_length=300,
-        help_text='Введите название экскурсии'
-    )
-    note = models.TextField(
+    name = models.CharField(verbose_name='Название экскурсии',
+        max_length=300
+        )
+    note = models.TextField(verbose_name='Описание',
         max_length=500,
-        verbose_name='Описание',
         blank=True, null=True
-    )
-    cost = models.DecimalField(max_digits=7, decimal_places=2)
+        )
+    cost = models.DecimalField(verbose_name='Стоимость',
+        max_digits=7, 
+        decimal_places=2
+        )
     timelines = models.ManyToManyField(Tourist,
-                                       through='TimelineForExcursion')
+        through='TimelineForExcursion'
+        )
 
     def __str__(self):
         """ Функция, отображающая название экскурсии """
@@ -268,18 +302,20 @@ class Excursion(models.Model):
 
 class Nutrition(models.Model):
     """ Модель описывающая питание туриста """
-    name = models.CharField(
-        max_length=300,
-        help_text='Введите название питания'
-    )
-    note = models.TextField(
+    name = models.CharField(verbose_name='Наименование',
+        max_length=300
+        )
+    note = models.TextField(verbose_name='Описание',
         max_length=500,
-        verbose_name='Описание',
         blank=True, null=True
-    )
-    cost = models.DecimalField(max_digits=7, decimal_places=2)
+        )
+    cost = models.DecimalField(verbose_name='Стоимость',
+        max_digits=7, 
+        decimal_places=2
+        )
     timelines = models.ManyToManyField(Tourist,
-                                       through='TimelineForNutrition')
+        through='TimelineForNutrition'
+        )
 
     def __str__(self):
         """ Функция, отображающая наименование питания """
@@ -292,14 +328,19 @@ class Nutrition(models.Model):
 
 class Hotel(models.Model):
     """ Модель описывающая отель для туристов  """
-    name = models.CharField(
-        max_length=300,
-        verbose_name='Название отеля',
-        help_text='Введите название отеля'
-    )
-    addres = models.CharField(max_length=300)
-    phone = models.CharField(max_length=20)
-    cost_for_one_day = models.DecimalField(max_digits=7, decimal_places=2)
+    name = models.CharField(verbose_name='Название отеля',
+        max_length=300
+        )
+    addres = models.CharField(verbose_name='Адрес отеля',
+        max_length=300
+        )
+    phone = models.CharField(verbose_name='Телефон отеля',
+        max_length=20
+        )
+    cost_for_one_day = models.DecimalField(verbose_name='Стоимость за сутки',
+        max_digits=7, 
+        decimal_places=2
+        )
     check_in = models.TimeField()
     check_out = models.TimeField()
     datelines = models.ManyToManyField(Tourist, through='DatelineForHotel')

@@ -1,23 +1,18 @@
 from django.contrib import admin
-from datetime import datetime
-from django.utils import timezone 
-from django.urls import path
-from django.shortcuts import redirect
-from django.utils.encoding import smart_str
-from django.contrib import messages
-from django.forms import ModelForm
+from datetime import datetime, timedelta
+from django.urls import reverse
 from django.conf.urls import url
 from django.utils.html import format_html
-from django.urls import reverse
 
-from tourists.models import (TimelineForNutrition, DatelineForHotel, 
+from tourists.models import (TimelineForNutrition, DatelineForHotel, Files,
 TimelineForExcursion, Tourist, Event, Group, Hotel, Excursion, Nutrition)
-from tourists import widgets, views
+from tourists import views
 
 
 class DatelineForHotelInline(admin.TabularInline):
     model = DatelineForHotel
     extra = 1
+    fields = ('hotel', ('time_from', 'time_to'))
 
 
 class TimelineForNutritionInline(admin.TabularInline):
@@ -26,37 +21,27 @@ class TimelineForNutritionInline(admin.TabularInline):
     fields = ('nutrition', ('time_from', 'time_to'), 'event')
     readonly_fields = ['event']
     show_change_link = True
-    print(model._meta.fields)
     
-    # то что уже съедено в прошлом нам не интересно  
+    # то что уже съедено вчера и позже нам не интересно  
     def get_queryset(self, request):
         query_set = super(TimelineForNutritionInline, self
             ).get_queryset(request)
-        return query_set.filter(time_from__gte=datetime.now(tz=timezone.utc))
+        return query_set.filter(
+            time_from__gte=datetime.now() - timedelta(days=1))
 
 
 class TimelineForExcursionInline(admin.TabularInline):
     model = TimelineForExcursion
     extra = 1
-    fields = ('excursion', ('time_from', 'time_to'),'event')
+    fields = ('excursion', ('time_from', 'time_to'), 'event')
     readonly_fields = ['event']
     show_change_link = True
 
 
-class TouristAdminForm(ModelForm):
-
-    class Meta:
-        model = Tourist
-        fields = ('name',
-                  'phone',
-                  'email',
-                  'note',
-                  'visa',
-                  'insurance',
-                  'passport',
-                  'others',
-                  'group')
-        widgets = {'others':widgets.MultiFileInput}
+class FilesInline(admin.StackedInline):
+    model = Files
+    extra = 1
+    fields = ('visa', 'passport', 'insurance', 'others')
 
 
 class TouristAdmin(admin.ModelAdmin):
@@ -64,20 +49,21 @@ class TouristAdmin(admin.ModelAdmin):
         'colored_name', 
         'phone',
         'is_full_package_of_documents', 
+        'is_paid',
         'status',
         'tourist_actions', 
         'note'
         )
-
+    
     search_fields = ('name',)
     filter_horizontal = ('excursion',)
+
     inlines = [
+        FilesInline,
         TimelineForNutritionInline,
         TimelineForExcursionInline,
         DatelineForHotelInline,
-    ]
-
-    form = TouristAdminForm
+        ]
 
     def get_urls(self):
         urls = super().get_urls()
@@ -102,7 +88,8 @@ class TouristAdmin(admin.ModelAdmin):
             #reverse('admin:gant-chart', args=[obj.pk]),
         )
     tourist_actions.short_description = 'Кнопки'
-    tourist_actions.allow_tags = True    
+    tourist_actions.allow_tags = True 
+
 
     def save_formset(self, request, form, formset, change):
         instances = formset.save(commit=False)
@@ -119,7 +106,7 @@ class TouristAdmin(admin.ModelAdmin):
                 # cоздаём новое событие для Питания
                 if not tl_nutr:
                     new_event = Event.objects.create(name=
-                        f"Питание в {instance.time_from}",status='p')
+                        f"Питание в {instance.time_from}")
                     instance.event = new_event
                 else:
                     instance.event = tl_nutr.event 
@@ -130,13 +117,11 @@ class TouristAdmin(admin.ModelAdmin):
                     time_from=instance.time_from).filter(
                     excursion__name=instance.excursion).exclude(
                     id=instance.id).first()
-                print(tl_ex)    
                 # если никто в это время на эту экскурсию не идёт и запрос 
                 # вернулся пустой, создаём новое событие для Экскурсии
                 if not tl_ex:
                     new_event = Event.objects.create(name=
-                      f"Экскурсия {instance.excursion} в {instance.time_from}", 
-                                                     status='p')
+                      f"Экскурсия {instance.excursion} в {instance.time_from}")
                     instance.event = new_event
                 else:
                     instance.event = tl_ex.event
@@ -145,18 +130,32 @@ class TouristAdmin(admin.ModelAdmin):
                 instance.save()  
         formset.save_m2m()
 
+
     def is_full_package_of_documents(self, obj):
         """ Функция для установки флажка Полный пакет документов"""
-        visa = Tourist.objects.get(id = obj.id).visa
-        have_visa = visa is not None and visa.name != ''
-        insurance = Tourist.objects.get(id = obj.id).insurance
-        have_insurance = insurance is not None and insurance.name != ''
-        passport = Tourist.objects.get(id = obj.id).passport
-        have_passport = passport is not None and passport.name != ''
-        return have_visa and have_insurance and have_passport
+        have_all_docs = Files.objects.filter(tourist=obj.id).exclude(visa=''
+                                                           ).exclude(insurance=''
+                                                           ).exclude(passport='')
+        if have_all_docs:
+            return True
+        else:
+            return False    
 
     is_full_package_of_documents.boolean = True
     is_full_package_of_documents.short_description = "Полный пакет документов"
+
+    def colored_name(self, obj):
+        if obj.status == 'ожидается приезд':   color = 'ff9900'
+        elif obj.status == 'уехал': color = '66ff33'
+        elif obj.status == 'ничем не занят': color = '000000'
+        elif obj.status == 'не заселен в гостиницу': color = 'ff0000'
+        else:    
+            color = 'grey'
+        return format_html('<b><span style="color: #{};">{}</span><b>',
+                           color, obj.name)
+
+    colored_name.short_description = 'ФИО Туриста'
+    colored_name.allow_tags = True
 
 
 class TouristInline(admin.TabularInline):
@@ -219,9 +218,9 @@ class EventAdmin(admin.ModelAdmin):
     ]
 
 
-admin.site.register(Group, GroupAdmin)
 admin.site.register(Tourist, TouristAdmin)
 admin.site.register(Nutrition, NutritionAdmin)
-admin.site.register(Hotel, HotelAdmin)
+admin.site.register(Hotel)
 admin.site.register(Excursion, ExcursionAdmin)
 admin.site.register(Event, EventAdmin)
+admin.site.register(Group, GroupAdmin)

@@ -56,6 +56,16 @@ def show_list_services(request, pk):
     else:
         total_of_hotel = 0
 
+    amount_of_nutition = TimelineForNutrition.objects.filter(
+        tourist=tourist).count()
+    amount_of_excursion = TimelineForExcursion.objects.filter(
+        tourist=tourist).count()
+    amount_of_hotel = DatelineForHotel.objects.filter(
+        tourist=tourist).count()
+
+    # Просуммируем количество всех услуг
+    amount = amount_of_nutition + amount_of_excursion + amount_of_hotel
+
     total_of_nutrition = TimelineForNutrition.objects.filter(
         tourist=tourist
     ).aggregate(Sum('nutrition__cost'))['nutrition__cost__sum']
@@ -74,6 +84,7 @@ def show_list_services(request, pk):
     context = {
         'tourist': tourist,
         'list_of_services': list_of_services,
+        'amount': amount,
         'total': total
         }
     # Передаём HTML шаблону данные контекста
