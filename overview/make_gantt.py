@@ -4,60 +4,10 @@ from itertools import groupby
 from bokeh.plotting import figure, save, output_file
 from bokeh.models import ColumnDataSource, Range1d
 from bs4 import BeautifulSoup
-from django.utils import timezone
+from dateutil.tz import tzlocal
+import random
 import os
 
-import time
-
-# process_list = [
-#     ('breakfast',
-#      datetime.datetime(2019, 6, 1, 7, 15),
-#      datetime.datetime(2019, 6, 1, 7, 55), 'decimal'
-#      ),
-#     ('walking',
-#      datetime.datetime(2019, 6, 1, 8, 15),
-#      datetime.datetime(2019, 6, 1, 10, 55), 'decimal'
-#      ),
-#     ('sleeping',
-#      datetime.datetime(2019, 6, 1, 11, 15),
-#      datetime.datetime(2019, 6, 1, 12, 55), 'decimal'
-#      ),
-#     ('Hotel_Boot',
-#      datetime.datetime(2019, 6, 1, 20, 50),
-#      datetime.datetime(2019, 6, 2, 12, 0), 'decimal'
-#      ),
-#     ('dinner',
-#      datetime.datetime(2019, 6, 1, 13, 15),
-#      datetime.datetime(2019, 6, 1, 14, 55), 'decimal'
-#      ),
-#     ('breakfast',
-#      datetime.datetime(2019, 6, 2, 7, 15),
-#      datetime.datetime(2019, 6, 2, 7, 55), 'decimal'
-#      ),
-#     ('dinner',
-#      datetime.datetime(2019, 6, 2, 13, 15),
-#      datetime.datetime(2019, 6, 2, 14, 55), 'decimal'
-#      ),
-#     ('breakfast',
-#      datetime.datetime(2019, 6, 4, 7, 15),
-#      datetime.datetime(2019, 6, 4, 7, 55), 'decimal'
-#      ),
-#     ('dinner',
-#      datetime.datetime(2019, 6, 4, 13, 15),
-#      datetime.datetime(2019, 6, 4, 14, 55), 'decimal'
-#      ),
-#     ('walk_ex',
-#      datetime.datetime(2019, 6, 2, 15, 15),
-#      datetime.datetime(2019, 6, 2, 19, 0), 'decimal'
-#      ),
-#     ('a_photo_session',
-#      datetime.datetime(2019, 6, 4, 9, 30),
-#      datetime.datetime(2019, 6, 5, 12, 0), 'decimal'
-#      ),
-#     ('wine_museum',
-#      datetime.datetime(2019, 6, 4, 16, 0),
-#      datetime.datetime(2019, 6, 6, 10, 30), 'decimal')
-# ]
 
 def unpack_lists(lists_in_list: list) -> list:
     unpacked_list = []
@@ -71,44 +21,57 @@ def unpack_lists(lists_in_list: list) -> list:
 
 def partition_proc(event: list) -> list:
     """ Функция дробления многодневных процессов и их сортировки по времени начала процесса"""
-    event_title = event[0]
-    begin_event = min(event[1:])
-    end_event = max(event[1:])
 
-    delta = end_event.day - begin_event.day
-    if delta != 0:
+    def check_date_equality (begin, end) -> bool:
+        """ Функция проверки, совпадает ли день начала с днем конца процесса"""
+        if begin.day == end.day and begin.month == end.month:
+            return True
+        return False
+
+    colors = ['#1f77b4', '#aec7e8', '#ff7f0e', '#ffbb78',
+              '#2ca02c', '#98df8a', '#d62728', '#ff9896',
+              '#9467bd', '#c5b0d5', '#8c564b', '#c49c94',
+              '#e377c2', '#f7b6d2', '#bcbd22', '#dbdb8d',
+              '#17becf', '#2ca02c', '#a55194', '#637939']
+    event_title = event[0]
+    begin_event = min(event[1:]).astimezone(tzlocal()).replace(tzinfo=None)
+    end_event = max(event[1:]).astimezone(tzlocal()).replace(tzinfo=None)
+    color = random.choice(colors)
+
+    if not check_date_equality(begin_event, end_event):
         point = begin_event
         temp_list = []
         time_end = datetime.time(23, 59)        # Все суточные процессы заканиваются в полночь
 
-        for _ in range(delta):
+        while not check_date_equality(point, end_event):
+            """ Цикл будет крутиться и на каждом цикле отрезать от процесса сутки, пока
+            последние сутки не сравняются с датой окончания процесса"""
+            part = datetime.datetime.combine(point.date(), time_end)
             temp_list.append([
                 event_title,
                 point,
-                datetime.datetime.combine(point.date(), time_end, tzinfo=timezone.utc)
+                part,
+                color
             ])
 
-            point = datetime.datetime.combine(
-                point.date(),
-                time_end,
-                tzinfo=timezone.utc
-            ) + datetime.timedelta(minutes=1)
-        temp_list.append([event_title, point, end_event])
-
+            point = part + datetime.timedelta(minutes=2)
+        temp_list.append([event_title, point, end_event, color])  # Добавление временного промежутка последних суток
         return temp_list
-    return [event_title, begin_event, end_event]
+    return [event_title, begin_event, end_event, color]
 
-def valid_proccess(process: list) -> bool:
+
+def valid_process(process: list) -> bool:
     for elem in process:
         if elem is None:
             return False
     return True
 
+
 def main(process_list) -> list:
     valid_process_list = []
     for process in process_list:
         process = list(process)
-        if valid_proccess(process):
+        if valid_process(process):
             valid_process_list.append(partition_proc(process))
 
     process_list = unpack_lists(valid_process_list)
@@ -118,7 +81,7 @@ def main(process_list) -> list:
 def diagram_drow_in_file(day_proc: list, url: str):
     # Рисует диаграмму Ганта и сохраняет ее в файл
 
-    DF = pd.DataFrame(columns=['Process', 'Start', 'End'])
+    DF = pd.DataFrame(columns=['Process', 'Start', 'End', 'Color'])
     diagram_title = str(day_proc[0][1].date().strftime('%d.%m.%Y'))
     for i, data in enumerate(day_proc[::-1]):
         DF.loc[i] = data
@@ -140,8 +103,10 @@ def diagram_drow_in_file(day_proc: list, url: str):
         right='End',
         bottom='ID',
         top='ID1',
+        color='Color',
         source=CDS,
-        line_width=3)
+        line_width=3,
+        )
     output_file(url)
     save(G)
 
@@ -163,27 +128,12 @@ def start_gantt(original_list):
         )
     ]
 
-    # # Проверка вывода процессов
-    # for i in correct_process_list:
-    #     for k in i:
-    #         print(k)
-
     for day_proc in correct_process_list:
         diagram_drow_in_file(day_proc, url)
-        # Если диаграмма не будет успевать отрисовываться - установить достаточную временную задержку
-        # time.sleep(0.8)
+
         diagrams += parsing_file(url)
     return diagrams
 
 
-# ### Запуск тела программы
-
 if __name__ == '__main__':
     diagrams_list = start_gantt(process_list)
-
-
-# #### Просмотр результатов вывода в файле (можно кидать в html-документ)
-# with open('result_parse.txt', 'w') as file:
-# #     file.write('<HEAD>:\n', diagrams_list[0]['head'], '\n</HEAD>')
-#    for i in range(len(diagrams_list)):
-#        file.write(diagrams_list[i]['body'])

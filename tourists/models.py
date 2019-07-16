@@ -2,7 +2,7 @@ from django.db import models
 from itertools import chain
 from django.core.exceptions import ValidationError
 from django.db.models import Q
-
+from django.utils import timezone
 from overview.make_gantt import *
 
 
@@ -56,11 +56,23 @@ class Tourist(models.Model):
     email = models.EmailField(verbose_name='email',
         max_length=50,
         blank=True, null=True
-    )
+        )
     note = models.TextField(verbose_name='Примечание',
         max_length=100,
         blank=True, null=True
-    )
+        )
+    visa = models.FileField(verbose_name='Копия визы',
+        blank=True, null=True,
+        upload_to='files'
+        )
+    insurance = models.FileField(verbose_name='Копия страховки',
+        blank=True, null=True,
+        upload_to='files'
+        )
+    passport = models.FileField(verbose_name='Копия паспорта',
+        blank=True, null=True,
+        upload_to='files'
+        )
     group = models.ForeignKey('Group', verbose_name='Группа',
         on_delete=models.SET_NULL,
         blank=True, null=True
@@ -77,25 +89,24 @@ class Tourist(models.Model):
     def status(self):
         ''' Функция для установки вычисляемого поля статус '''
         from datetime import datetime 
-        from django.utils import timezone 
 
         is_await = Tourist.objects.filter(id=self.id, 
-                group__date_of_arrival__gte=datetime.now(tz=timezone.utc)
+                group__date_of_arrival__gte=timezone.now()
                 )
         is_left = Tourist.objects.filter(id=self.id, 
-                group__date_of_departure__lte=datetime.now(tz=timezone.utc)
+                group__date_of_departure__lte=timezone.now()
                 )
         is_nutr = TimelineForNutrition.objects.filter(tourist=self.id, 
-            time_from__lte=datetime.now(tz=timezone.utc), 
-            time_to__gte=datetime.now(tz=timezone.utc)
+            time_from__lte=timezone.now(), 
+            time_to__gte=timezone.now()
             )
         on_excur = TimelineForExcursion.objects.filter(tourist=self.id, 
-            time_from__lte=datetime.now(tz=timezone.utc),
-            time_to__gte=datetime.now(tz=timezone.utc) 
+            time_from__lte=timezone.now(),
+            time_to__gte=timezone.now() 
             )
         in_hotel = DatelineForHotel.objects.filter(tourist=self.id, 
-            time_from__lte=datetime.now(tz=timezone.utc),
-            time_to__gte=datetime.now(tz=timezone.utc)
+            time_from__lte=timezone.now(),
+            time_to__gte=timezone.now()
             )
 
         if is_await:
@@ -125,36 +136,40 @@ class Tourist(models.Model):
         )
         list_of_business = [i for i in all_business]
         return start_gantt(list_of_business)
+  
+    def check_doc(self):
+        doc_pack = Tourist.objects.filter(
+            id=self.id
+        ).values('visa', 'insurance', 'passport')
+        for pack in doc_pack:
+            for _, doc in pack.items():
+                if doc is None or doc == '':
+                    return False
+        return True
+        
+    def check_hotel(self):
+        return set(DatelineForHotel.objects.filter(
+            tourist=self.id
+        ).values_list('hotel__name', flat=True))
+
+    def check_nutrition(self):
+        return set(TimelineForNutrition.objects.filter(
+            tourist=self.id
+        ).values_list('nutrition__name', flat=True))
+  
 
     def __str__(self):
         """ Функция, отображающая имя туриста и его телефон"""
         return f'{self.name} {self.phone}'
 
 
-class Files(models.Model):
-    visa = models.FileField(verbose_name='Копия визы',
-        blank=True, null=True,
-        upload_to='files'
-        )
-    insurance = models.FileField(verbose_name='Копия страховки',
-        blank=True, null=True,
-        upload_to='files'
-        )
-    passport = models.FileField(verbose_name='Копия паспорта',
-        blank=True, null=True,
-        upload_to='files'
-        )
-    others = models.FileField(verbose_name='Другие документы',
-        blank=True, null=True,
-        upload_to='files'
-        )
-    tourist = models.ForeignKey('Tourist', verbose_name='Турист',
-        on_delete=models.CASCADE,
-        blank=True, null=True
-        )
+class FeedFile(models.Model):
+    file = models.FileField(blank=True, null=True, upload_to="files/%Y/%m/%d")
+    feed = models.ForeignKey(Tourist, on_delete=models.CASCADE)
+
     class Meta:
-        verbose_name = 'Файл'
-        verbose_name_plural = "Файлы"
+        verbose_name = 'Другие документы'
+        verbose_name_plural = 'Другие документы'
 
 
 class Event(models.Model):
@@ -205,13 +220,13 @@ class Timeline(models.Model):
         # Проверим, нет ли у этого туриста других дел на это время
 
         tle = TimelineForExcursion.objects.filter(Q(tourist=self.tourist),
-            Q(time_from__gte=self.time_from, time_from__lte=self.time_to) |
-            Q(time_to__gte=self.time_from, time_to__lte=self.time_to)
+            Q(time_from__gt=self.time_from, time_from__lt=self.time_to) |
+            Q(time_to__gt=self.time_from, time_to__lt=self.time_to)
             ).exclude(id=self.id)
 
         tln = TimelineForNutrition.objects.filter(Q(tourist=self.tourist),
-            Q(time_from__gte=self.time_from, time_from__lte=self.time_to) |
-            Q(time_to__gte=self.time_from, time_to__lte=self.time_to)
+            Q(time_from__gt=self.time_from, time_from__lt=self.time_to) |
+            Q(time_to__gt=self.time_from, time_to__lt=self.time_to)
             ).exclude(id=self.id)
         # Если хотя бы один запрос вернулся не пустым
         if tle or tln:
@@ -265,8 +280,8 @@ class DatelineForHotel(Timeline):
         # Проверим, не живет ли турист в другой гостинице это время
 
         dlh = DatelineForHotel.objects.filter(Q(tourist=self.tourist),
-            Q(time_from__gte=self.time_from, time_from__lte=self.time_to) |
-            Q(time_to__gte=self.time_from, time_to__lte=self.time_to)
+            Q(time_from__gt=self.time_from, time_from__lt=self.time_to) |
+            Q(time_to__gt=self.time_from, time_to__lt=self.time_to)
             ).exclude(id=self.id)
 
         # Если запрос вернулся не пустым
@@ -341,8 +356,8 @@ class Hotel(models.Model):
         max_digits=7, 
         decimal_places=2
         )
-    check_in = models.TimeField()
-    check_out = models.TimeField()
+    check_in = models.TimeField(verbose_name='Время заселения')
+    check_out = models.TimeField(verbose_name='Время выезда')
     datelines = models.ManyToManyField(Tourist, through='DatelineForHotel')
 
     def __str__(self):
