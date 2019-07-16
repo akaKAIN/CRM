@@ -1,10 +1,12 @@
 from django.contrib import admin
-from datetime import datetime, timedelta
+from datetime import timedelta
+from django.utils import timezone
 from django.urls import reverse
 from django.conf.urls import url
 from django.utils.html import format_html
+from django.contrib import messages
 
-from tourists.models import (TimelineForNutrition, DatelineForHotel, Files,
+from tourists.models import (TimelineForNutrition, DatelineForHotel, FeedFile,
 TimelineForExcursion, Tourist, Event, Group, Hotel, Excursion, Nutrition)
 from tourists import views
 
@@ -27,7 +29,7 @@ class TimelineForNutritionInline(admin.TabularInline):
         query_set = super(TimelineForNutritionInline, self
             ).get_queryset(request)
         return query_set.filter(
-            time_from__gte=datetime.now() - timedelta(days=1))
+            time_from__gte=timezone.now() - timedelta(days=1))
 
 
 class TimelineForExcursionInline(admin.TabularInline):
@@ -38,10 +40,25 @@ class TimelineForExcursionInline(admin.TabularInline):
     show_change_link = True
 
 
-class FilesInline(admin.StackedInline):
-    model = Files
+class FeedFileInline(admin.StackedInline):
+    model = FeedFile
     extra = 1
-    fields = ('visa', 'passport', 'insurance', 'others')
+
+
+def make_set_group_action(group):
+        def set_group(modeladmin, request, queryset):
+            for tourist in queryset:
+                selected_tourist = Tourist.objects.get(id=tourist.id)
+                selected_tourist.group=group
+                selected_tourist.save()
+                messages.info(request, 
+                    f'Турист {tourist.name} перемещен в {group.group_name}')
+        short = f'Переместить выбранных туристов в {group.group_name}'
+        set_group.short_description = short
+        # Нам нужны уникальные '__name__' для каждого action
+        set_group.__name__ = f'assign_to_user_{group.id}'
+
+        return set_group
 
 
 class TouristAdmin(admin.ModelAdmin):
@@ -57,13 +74,38 @@ class TouristAdmin(admin.ModelAdmin):
     
     search_fields = ('name',)
     filter_horizontal = ('excursion',)
+    actions = ['set_paid_action']
 
     inlines = [
-        FilesInline,
+        FeedFileInline,
         TimelineForNutritionInline,
         TimelineForExcursionInline,
         DatelineForHotelInline,
         ]
+
+
+    def set_paid_action(self, request, queryset):
+        rows_updated = queryset.update(is_paid=True)
+        if rows_updated == 1:
+            message_bit = '1 турист был'
+        else:
+            message_bit = f'{rows_updated} туриста были'
+        self.message_user(request, f'{message_bit} успешно отмечены оплаченными.')
+    
+    set_paid_action.short_description = "Отметить выбранных турстов оплаченными"
+
+
+    def get_actions(self, request):
+        actions = super(TouristAdmin, self).get_actions(request)
+
+        for group in Group.objects.exclude(status='g').order_by('group_name'):
+            action = make_set_group_action(group)
+            actions[action.__name__] = (action,
+                                        action.__name__,
+                                        action.short_description)
+
+        return actions 
+
 
     def get_urls(self):
         urls = super().get_urls()
@@ -89,7 +131,6 @@ class TouristAdmin(admin.ModelAdmin):
         )
     tourist_actions.short_description = 'Кнопки'
     tourist_actions.allow_tags = True 
-
 
     def save_formset(self, request, form, formset, change):
         instances = formset.save(commit=False)
@@ -133,22 +174,24 @@ class TouristAdmin(admin.ModelAdmin):
 
     def is_full_package_of_documents(self, obj):
         """ Функция для установки флажка Полный пакет документов"""
-        have_all_docs = Files.objects.filter(tourist=obj.id).exclude(visa=''
-                                                           ).exclude(insurance=''
-                                                           ).exclude(passport='')
-        if have_all_docs:
-            return True
-        else:
-            return False    
+        have_all_docs = Tourist.objects.filter(id=obj.id
+                                              ).exclude(visa=''
+                                              ).exclude(insurance=''
+                                              ).exclude(passport='')
+        return bool(have_all_docs)   
 
     is_full_package_of_documents.boolean = True
     is_full_package_of_documents.short_description = "Полный пакет документов"
 
     def colored_name(self, obj):
-        if obj.status == 'ожидается приезд':   color = 'ff9900'
-        elif obj.status == 'уехал': color = '66ff33'
-        elif obj.status == 'ничем не занят': color = '000000'
-        elif obj.status == 'не заселен в гостиницу': color = 'ff0000'
+        if obj.status == 'ожидается приезд':   
+            color = 'ff9900'
+        elif obj.status == 'уехал': 
+            color = '66ff33'
+        elif obj.status == 'ничем не занят': 
+            color = '000000'
+        elif obj.status == 'не заселен в гостиницу': 
+            color = 'ff0000'
         else:    
             color = 'grey'
         return format_html('<b><span style="color: #{};">{}</span><b>',
@@ -217,7 +260,7 @@ class EventAdmin(admin.ModelAdmin):
         TimelineForExcursionEventInline,
     ]
 
-
+admin.site.site_url = '/crm'
 admin.site.register(Tourist, TouristAdmin)
 admin.site.register(Nutrition, NutritionAdmin)
 admin.site.register(Hotel)
