@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'overview/includes/crm_head_template.html' %}
+
+    <title> CRM-base-template </title>
+
+</head>
+<body>
+<!--Панель навигации-->
+{% include 'overview/includes/crm_nav_template.html' %}
+
+<!--Раскрывающиеся списки-->
+<div class="accordion" id="accordionExample">
+
+    <!--    Карточка группы-->
+    {% for group, tourists in groups.items %}
+    <div class="card">
+        <div class="card-header" id="headingOne">
+            <h2>
+                <button class="btn btn-link collapsed" type="button" data-toggle="collapse"
+                        data-target="#collapse{% cycle '1' '2' '3' '4' '5' '6' '7' '8' '9' '10' as num_group %}"
+                        aria-expanded="true" aria-controls="collapse{{ num_group }}">
+                    <div class="alert alert-success" role="alert">
+                        <h4>"{{ group.group_name }}"</h4>
+                        <div class="alert alert-warning" role="alert">
+                            Прибытие: {{ group.date_of_arrival }}
+                        </div>
+                        <div class="alert alert-warning" role="alert">Отъезд: {{ group.date_of_departure }}</div>
+                    </div>
+                </button>
+            </h2>
+        </div>
+        <div id="collapse{{ num_group }}" class="collapse" aria-labelledby="heading{{ num_group }}"
+             data-parent="#accordionExample">
+            <div class="card-body">
+                <table class="table table-striped">
+                    <thead>
+                    <tr class="alert alert-success">
+                        <th scope="col">#</th>
+                        <th scope="col">Имя туриста</th>
+                        <th scope="col">Док-ты</th>
+                        <th scope="col">Гостиница</th>
+                        <th scope="col">Питание</th>
+                        <th scope="col">Распорядок дня</th>
+                    </tr>
+                    </thead>
+
+                    <tbody>
+                    {% for tourist in tourists %}
+                    <tr>
+                        <th scope="row">{{ forloop.counter }}</th>
+                        <td class="tourist_name">{{ tourist.name }}</td>
+                        <td class="simple">{% if tourist.check_doc %} Да {% else %} Нет {% endif %}</td>
+                        <td class="simple">{% for hotel in tourist.check_hotel %} <p>{{ hotel }}</p> {% endfor %}</td>
+                        <td class="simple">{% for food in tourist.check_nutrition %} <p>{{ food }}</p> {% endfor %}</td>
+
+
+                        <td class="daigrams" style="overflow-x: overlay">
+                            <div class="diagram">
+                                {{ tourist.gantt_to_html | safe }}
+                            </div>
+                        </td>
+
+                    </tr>
+                    {% endfor %}
+
+                    </tbody>
+                </table>
+
+
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+            integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+            integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+            crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+            integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+            crossorigin="anonymous"></script>
+</body>
+</html>
